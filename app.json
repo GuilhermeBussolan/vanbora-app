@@ -29,7 +29,13 @@
     "plugins": [
       "expo-router",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O VanBora usa sua localização para mostrar a van em tempo real no mapa."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

@@ -1,16 +1,14 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
-import {
-  currentGuardianName,
-  formatCurrency,
-  guardianNotice,
-  nextPayment,
-  weekAttendance,
-} from '@/data/mockData';
+import { listContracts } from '@/api/contracts';
+import { getGuardianDashboard, GuardianDashboardDto } from '@/api/guardian';
+import { listGuardianNotices, removeReaction, setReaction } from '@/api/notices';
+import { ContractDto, GuardianNoticeDto, NOTICE_EMOJIS } from '@/types';
+import { formatCurrency } from '@/data/mockData';
 import { colors, radius, spacing, typography } from '@/theme';
 
 function greeting(): string {
@@ -20,55 +18,185 @@ function greeting(): string {
   return 'Boa noite';
 }
 
-/** Dashboard do Responsável — alterna entre estado vazio e populado. */
+/** Dashboard do Responsável — alterna entre estado vazio e populado (dados reais). */
 export default function GuardianHomeScreen() {
-  const { hasTransporter } = useAppState();
+  const { user, token } = useAppState();
+  const [dashboard, setDashboard] = useState<GuardianDashboardDto | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      if (token) {
+        getGuardianDashboard(token)
+          .then((d) => active && setDashboard(d))
+          .catch(() => active && setDashboard(null));
+      }
+      return () => {
+        active = false;
+      };
+    }, [token]),
+  );
 
   return (
     <Screen>
       <Text style={[typography.screenTitle, styles.greeting]}>
-        {greeting()}, {currentGuardianName}
+        {greeting()}, {user?.name ?? ''}
       </Text>
 
-      {hasTransporter ? <PopulatedDashboard /> : <EmptyDashboard />}
+      <PendingContractsBanner />
+
+      {dashboard?.hasTransporter ? (
+        <PopulatedDashboard dashboard={dashboard} />
+      ) : (
+        <EmptyDashboard />
+      )}
     </Screen>
   );
 }
 
-function PopulatedDashboard() {
+/** Banner: avisa o responsável que há contrato(s) liberado(s) para assinatura. */
+function PendingContractsBanner() {
+  const { token } = useAppState();
+  const [pending, setPending] = useState<ContractDto[]>([]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true;
+      if (token) {
+        listContracts(token, 'PENDING_SIGNATURE')
+          .then((list) => active && setPending(list))
+          .catch(() => active && setPending([]));
+      }
+      return () => {
+        active = false;
+      };
+    }, [token]),
+  );
+
+  if (pending.length === 0) return null;
+
   return (
-    <View style={styles.body}>
-      <Card style={styles.noticeCard}>
+    <View style={styles.banners}>
+      {pending.map((c) => (
+        <Pressable key={c.id} onPress={() => router.push(`/contract/${c.id}`)}>
+          <Card style={styles.contractBanner}>
+            <Ionicons name="document-text-outline" size={22} color={colors.brandDark} />
+            <View style={styles.bannerBody}>
+              <Text style={styles.bannerTitle}>Contrato para assinar</Text>
+              <Text style={styles.bannerText}>
+                {c.transporterName} liberou o contrato de {c.studentName}. Toque para revisar e assinar.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Card>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+/** Card do aviso mais recente, tocável (tela cheia) e com reação inline. */
+function LatestNoticeCard() {
+  const { token } = useAppState();
+  const [notice, setNotice] = useState<GuardianNoticeDto | null>(null);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true;
+      if (token) {
+        listGuardianNotices(token)
+          .then((list) => active && setNotice(list[0] ?? null))
+          .catch(() => active && setNotice(null));
+      }
+      return () => {
+        active = false;
+      };
+    }, [token]),
+  );
+
+  async function react(emoji: string) {
+    if (!token || !notice) return;
+    try {
+      const updated =
+        notice.myReaction === emoji
+          ? await removeReaction(token, notice.id)
+          : await setReaction(token, notice.id, emoji);
+      setNotice(updated);
+    } catch {
+      /* ignora */
+    }
+  }
+
+  if (!notice) return null;
+
+  return (
+    <Card style={styles.noticeCard}>
+      <Pressable onPress={() => router.push(`/notice/${notice.id}`)}>
         <View style={styles.noticeHeader}>
           <Ionicons name="megaphone-outline" size={18} color={colors.brandDark} />
-          <Text style={styles.noticeTitle}>{guardianNotice.title}</Text>
+          <Text style={styles.noticeTitle}>Aviso do Transportador</Text>
+          <View style={styles.flex} />
+          <Pressable hitSlop={6} onPress={() => router.push('/guardian-notices')}>
+            <Text style={styles.seeAll}>Ver todos</Text>
+          </Pressable>
         </View>
-        <Text style={styles.noticeMessage}>{guardianNotice.message}</Text>
-      </Card>
+        {notice.title ? (
+          <Text style={styles.noticeCardTitle} numberOfLines={1}>
+            {notice.title}
+          </Text>
+        ) : null}
+        <Text style={styles.noticeMessage} numberOfLines={notice.title ? 2 : 3}>
+          {notice.message}
+        </Text>
+      </Pressable>
+
+      <View style={styles.reactionRow}>
+        {NOTICE_EMOJIS.map((emoji) => {
+          const selected = notice.myReaction === emoji;
+          return (
+            <Pressable
+              key={emoji}
+              onPress={() => react(emoji)}
+              style={[styles.reactionBtn, selected && styles.reactionBtnSelected]}
+            >
+              <Text style={styles.reactionEmoji}>{emoji}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </Card>
+  );
+}
+
+function PopulatedDashboard({ dashboard }: { dashboard: GuardianDashboardDto }) {
+  const next = dashboard.nextPayment;
+  return (
+    <View style={styles.body}>
+      <LatestNoticeCard />
 
       <Card>
         <View style={styles.attendanceHeader}>
           <Text style={typography.sectionTitle}>Presença da Semana</Text>
-          <Text style={styles.studentName}>Lucas</Text>
+          {dashboard.studentName ? (
+            <Text style={styles.studentName}>{dashboard.studentName}</Text>
+          ) : null}
         </View>
         <View style={styles.daysRow}>
-          {weekAttendance.map((d) => (
-            <View key={d.day} style={styles.dayItem}>
-              <Text style={styles.dayLabel}>{d.day}</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  d.present ? styles.dayPresent : styles.dayAbsent,
-                ]}
-              >
-                <Ionicons
-                  name={d.present ? 'checkmark' : 'close'}
-                  size={16}
-                  color={d.present ? colors.textOnBrand : colors.danger}
-                />
+          {dashboard.weekAttendance.map((d) => {
+            const present = d.present !== false;
+            return (
+              <View key={d.day} style={styles.dayItem}>
+                <Text style={styles.dayLabel}>{d.day}</Text>
+                <View style={[styles.dayCircle, present ? styles.dayPresent : styles.dayAbsent]}>
+                  <Ionicons
+                    name={present ? 'checkmark' : 'close'}
+                    size={16}
+                    color={present ? colors.textOnBrand : colors.danger}
+                  />
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       </Card>
 
@@ -79,10 +207,24 @@ function PopulatedDashboard() {
               <Ionicons name="cash-outline" size={16} color={colors.textSecondary} />
               <Text style={styles.paymentLabel}>Próximo Pagamento</Text>
             </View>
-            <Text style={styles.paymentValue}>{formatCurrency(nextPayment.amount)}</Text>
-            <Text style={styles.paymentDue}>Vencimento: {nextPayment.dueDate}</Text>
+            {next ? (
+              <>
+                <Text style={styles.paymentValue}>{formatCurrency(next.amount)}</Text>
+                <Text style={styles.paymentDue}>
+                  {formatRefMonth(next.referenceMonth)}
+                  {next.dueDate ? ` • vence ${formatDate(next.dueDate)}` : ''}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.paymentValue}>Em dia</Text>
+                <Text style={styles.paymentDue}>Nenhuma mensalidade pendente.</Text>
+              </>
+            )}
           </View>
-          <Button label="Pagar" onPress={() => router.push('/payments')} style={styles.payBtn} />
+          {next ? (
+            <Button label="Pagar" onPress={() => router.push('/payments')} style={styles.payBtn} />
+          ) : null}
         </View>
       </Card>
     </View>
@@ -109,9 +251,51 @@ function EmptyDashboard() {
   );
 }
 
+/** "2026-06" → "Junho 2026". */
+function formatRefMonth(ym: string): string {
+  const [year, month] = ym.split('-');
+  const names = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  ];
+  const idx = Number(month) - 1;
+  return idx >= 0 && idx < 12 ? `${names[idx]} ${year}` : ym;
+}
+
+/** "2026-06-10" → "10/06". */
+function formatDate(iso: string): string {
+  const [, m, d] = iso.split('-');
+  return d && m ? `${d}/${m}` : iso;
+}
+
 const styles = StyleSheet.create({
   greeting: {
     marginBottom: spacing.xl,
+  },
+  banners: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  contractBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brand,
+  },
+  bannerBody: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  bannerText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 17,
   },
   body: {
     gap: spacing.lg,
@@ -130,6 +314,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  flex: {
+    flex: 1,
+  },
+  seeAll: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.brandDark,
+  },
+  reactionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  reactionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  reactionBtnSelected: {
+    borderColor: colors.brand,
+    borderWidth: 2,
+  },
+  reactionEmoji: {
+    fontSize: 18,
+  },
+  noticeCardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginBottom: 2,
   },
   noticeMessage: {
     fontSize: 13,

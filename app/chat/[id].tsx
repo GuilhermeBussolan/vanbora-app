@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,31 +13,64 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components';
-import { chatMessages, chatPreviews } from '@/data/mockData';
-import { ChatMessage } from '@/types';
+import { useAppState } from '@/context/AppState';
+import { listMessages, markConversationRead, sendMessage } from '@/api/chat';
+import { ChatSocket } from '@/realtime/chatSocket';
+import { MessageDto } from '@/types';
 import { colors, radius, spacing, typography } from '@/theme';
 
-/** Conversa individual (compartilhada entre os dois perfis). */
+/** Conversa individual em tempo real (WebSocket) — compartilhada pelos dois perfis. */
 export default function ChatScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const contact = chatPreviews.find((c) => c.id === id) ?? chatPreviews[0];
+  const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
+  const conversationId = Number(id);
+  const { token, user } = useAppState();
 
-  const [messages, setMessages] = useState<ChatMessage[]>(chatMessages);
+  const [messages, setMessages] = useState<MessageDto[]>([]);
   const [draft, setDraft] = useState('');
+  const [connected, setConnected] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const socketRef = useRef<ChatSocket | null>(null);
 
-  function send() {
+  // Anexa uma mensagem evitando duplicatas (o broadcast pode ecoar o próprio envio).
+  const appendMessage = useCallback((msg: MessageDto) => {
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+  }, []);
+
+  // Histórico (REST) + conexão/assinatura do WebSocket.
+  useEffect(() => {
+    if (!token || !conversationId) return;
+
+    listMessages(token, conversationId).then(setMessages).catch(() => undefined);
+
+    const socket = new ChatSocket();
+    socketRef.current = socket;
+    socket.connect(token, () => setConnected(true));
+    socket.subscribeConversation(conversationId, (broadcast) => {
+      const fromMe = broadcast.senderUserId === user?.id;
+      appendMessage({ id: broadcast.id, text: broadcast.text, time: broadcast.time, fromMe });
+      // Mensagem recebida com a conversa aberta = já lida (mantém o badge zerado).
+      if (!fromMe) {
+        markConversationRead(token, conversationId).catch(() => undefined);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+      setConnected(false);
+    };
+  }, [token, conversationId, user?.id, appendMessage]);
+
+  async function send() {
     const text = draft.trim();
-    if (!text) return;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `m${Date.now()}`,
-        text,
-        time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        fromMe: true,
-      },
-    ]);
+    if (!text || !token) return;
     setDraft('');
+    try {
+      const saved = await sendMessage(token, conversationId, text);
+      appendMessage(saved); // imediato para o remetente; o eco do WS é deduplicado
+    } catch {
+      setDraft(text); // restaura o rascunho em caso de falha
+    }
   }
 
   return (
@@ -46,10 +79,12 @@ export default function ChatScreen() {
         <Pressable onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Avatar name={contact.name} size={40} />
+        <Avatar name={name ?? 'Conversa'} size={40} />
         <View style={styles.headerInfo}>
-          <Text style={typography.cardTitle}>{contact.name}</Text>
-          <Text style={styles.online}>Online</Text>
+          <Text style={typography.cardTitle}>{name ?? 'Conversa'}</Text>
+          <Text style={[styles.status, connected ? styles.online : styles.offline]}>
+            {connected ? 'Online' : 'Conectando…'}
+          </Text>
         </View>
       </View>
 
@@ -58,9 +93,11 @@ export default function ChatScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          ref={scrollRef}
           style={styles.flex}
           contentContainerStyle={styles.messages}
           showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
           {messages.map((msg) => (
             <View
@@ -113,9 +150,14 @@ const styles = StyleSheet.create({
   headerInfo: {
     gap: 1,
   },
-  online: {
+  status: {
     fontSize: 12,
+  },
+  online: {
     color: colors.success,
+  },
+  offline: {
+    color: colors.textMuted,
   },
   messages: {
     padding: spacing.xl,

@@ -1,10 +1,12 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useUnreadCount } from '@/hooks/useUnreadCount';
 import { colors } from '@/theme';
 
 /** Navegação por abas do perfil Responsável. */
 export default function GuardianLayout() {
+  const unread = useUnreadCount();
   return (
     <Tabs
       screenOptions={{
@@ -48,6 +50,8 @@ export default function GuardianLayout() {
         name="chats"
         options={{
           title: 'Chat',
+          tabBarBadge: unread > 0 ? unread : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.danger, color: colors.white },
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubble-outline" size={size} color={color} />
           ),

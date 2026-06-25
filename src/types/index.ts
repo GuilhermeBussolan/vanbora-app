@@ -92,6 +92,259 @@ export interface RouteStop {
   status: RouteStopStatus;
 }
 
+// ----- Integração com a API (mapa em tempo real) -----
+
+/** Papel do usuário como serializado pelo backend (enum em maiúsculas). */
+export type ApiUserRole = 'GUARDIAN' | 'TRANSPORTER';
+
+/** Usuário autenticado retornado pela API. */
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  role: ApiUserRole;
+}
+
+/** Parada da rota vinda do backend (com coordenadas para o mapa). */
+export interface ApiRouteStop {
+  id: number;
+  label: string;
+  address: string;
+  status: 'GOING' | 'NOT_GOING' | 'SCHOOL';
+  position: number;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+// ----- Avisos -----
+
+/** Conjunto fixo de emojis de reação. */
+export const NOTICE_EMOJIS = ['👍', '❤️', '😊', '😮', '😢', '🙏'] as const;
+
+export type NoticePriority = 'URGENT' | 'INFO';
+
+/** Reações agrupadas por emoji, com os nomes de quem reagiu. */
+export interface ReactionGroup {
+  emoji: string;
+  count: number;
+  names: string[];
+}
+
+/** Comentário em um aviso. `mine` = é do próprio usuário (pode excluir). */
+export interface NoticeCommentDto {
+  id: number;
+  authorName: string;
+  text: string;
+  createdAt: string;
+  mine: boolean;
+}
+
+/** Possível destinatário de um aviso (para segmentar). */
+export interface AudienceRecipient {
+  guardianId: number;
+  guardianName: string;
+  studentName: string;
+  school: string;
+  neighborhood: string;
+}
+
+/** Aviso visto pelo transportador (agendamento, prioridade, engajamento). */
+export interface TransporterNoticeDto {
+  id: number;
+  title: string | null;
+  message: string;
+  createdAt: string;
+  publishAt: string;
+  scheduled: boolean;
+  priority: NoticePriority;
+  allowComments: boolean;
+  audienceAll: boolean;
+  recipients: number;
+  viewedCount: number;
+  commentsCount: number;
+  reactions: ReactionGroup[];
+}
+
+/** Aviso visto pelo responsável (própria reação, quem reagiu, comentários). */
+export interface GuardianNoticeDto {
+  id: number;
+  title: string | null;
+  message: string;
+  createdAt: string;
+  publishAt: string;
+  transporterName: string;
+  priority: NoticePriority;
+  allowComments: boolean;
+  myReaction: string | null;
+  commentsCount: number;
+  reactions: ReactionGroup[];
+}
+
+// ----- Chat (integração real) -----
+
+/** Resumo de conversa para a lista (vindo da API). */
+export interface ConversationDto {
+  id: number;
+  name: string;
+  lastMessage: string;
+  time: string;
+  unread: number;
+}
+
+/** Mensagem do histórico (REST) — `fromMe` já calculado pelo backend. */
+export interface MessageDto {
+  id: number;
+  text: string;
+  time: string;
+  fromMe: boolean;
+}
+
+/** Mensagem difundida pelo WebSocket — neutra; o cliente calcula `fromMe`. */
+export interface ChatBroadcastDto {
+  conversationId: number;
+  id: number;
+  text: string;
+  time: string;
+  senderUserId: number;
+  senderName: string;
+}
+
+// ----- Perfil -----
+
+/** Dependente (aluno) do responsável. */
+export interface DependentDto {
+  id: number;
+  name: string;
+  school: string;
+}
+
+/** Ajudante/monitor do transportador. */
+export interface HelperDto {
+  id: number;
+  name: string;
+  role: string;
+  /** Caminho relativo da foto no backend (use mediaUrl()); null se sem foto. */
+  photoUrl: string | null;
+  /** Ativo no perfil público. */
+  active: boolean;
+}
+
+/** Perfil próprio do transportador (tela "Meu Perfil"). */
+export interface TransporterProfileDto {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  photoUrl: string | null;
+  cnh: string | null;
+  plate: string | null;
+  capacity: number | null;
+  baseMonthlyFee: number;
+  acceptsProposals: boolean;
+  schools: string[];
+  neighborhoods: string[];
+  helpers: HelperDto[];
+}
+
+/** Resumo do transportador nos resultados de busca. */
+export interface TransporterSummaryDto {
+  id: number;
+  name: string;
+  photoUrl: string | null;
+  rating: number;
+  reviewsCount: number;
+  schools: string[];
+  neighborhoods: string[];
+  monthlyFee: number;
+  availableSeats: number;
+}
+
+/** Avaliação exibida no perfil público. */
+export interface TransporterReviewDto {
+  id: number;
+  authorName: string;
+  rating: number;
+  comment: string;
+}
+
+/** Perfil público do transportador, visto pelo responsável. */
+export interface TransporterDetailDto {
+  id: number;
+  name: string;
+  photoUrl: string | null;
+  phone: string;
+  rating: number;
+  reviewsCount: number;
+  yearsExperience: number;
+  schools: string[];
+  neighborhoods: string[];
+  monthlyFee: number;
+  acceptsProposals: boolean;
+  availableSeats: number;
+  helpers: HelperDto[];
+  reviews: TransporterReviewDto[];
+}
+
+// ----- Contratação pela plataforma -----
+
+export type PaymentMethodType = 'CREDIT_CARD' | 'AUTO_DEBIT';
+
+export type ContractStatus = 'PENDING_SIGNATURE' | 'ACTIVE' | 'CANCELLED';
+
+/** Meio de pagamento salvo (sem dados sensíveis). */
+export interface PaymentMethodDto {
+  id: number;
+  type: PaymentMethodType;
+  brand: string;
+  last4: string;
+}
+
+/** Contrato exibido ao responsável. */
+export interface ContractDto {
+  id: number;
+  status: ContractStatus;
+  transporterName: string;
+  studentName: string;
+  school: string;
+  monthlyFee: number;
+  signedAt: string | null;
+}
+
+/** Solicitação de contratação exibida ao transportador, com dados do responsável. */
+export interface HireRequestDto {
+  id: number;
+  guardianName: string;
+  guardianPhone: string;
+  guardianEmail: string;
+  studentName: string;
+  school: string;
+  neighborhood: string;
+  /** Valor de tabela do transportador. */
+  baseFee: number;
+  /** Valor proposto pelo responsável (null = sem proposta). */
+  proposedFee: number | null;
+}
+
+/**
+ * Resposta do acompanhamento em tempo real do responsável.
+ * Por privacidade, expõe só a parada do próprio dependente, a escola e a ordem
+ * de embarque — nunca dados de outros responsáveis.
+ */
+export interface GuardianTracking {
+  hasTransporter: boolean;
+  transporterName: string | null;
+  studentName: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  updatedAt: string | null;
+  myStop: ApiRouteStop | null;
+  schoolStop: ApiRouteStop | null;
+  myOrder: number | null;
+  totalStops: number | null;
+  goingToday: boolean;
+}
+
 export interface Helper {
   id: string;
   name: string;

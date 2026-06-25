@@ -1,61 +1,145 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Badge, Button, Card, MapPlaceholder, Screen } from '@/components';
-import { routeStops } from '@/data/mockData';
-import { RouteStopStatus } from '@/types';
+import { Badge, Button, Card, LeafletMap, MapPlaceholder, Screen } from '@/components';
+import { MapPoint } from '@/components/ui/LeafletMap';
+import { useAppState } from '@/context/AppState';
+import { useLocationBroadcast } from '@/hooks/useLocationBroadcast';
+import { getMyRoute, optimizeMyRoute } from '@/api/tracking';
+import { ApiRouteStop } from '@/types';
 import { colors, radius, spacing, typography } from '@/theme';
 
-const stopBadge: Record<RouteStopStatus, { label: string; tone: 'success' | 'danger' | 'neutral' }> = {
-  going: { label: 'VAI', tone: 'success' },
-  not_going: { label: 'NÃO VAI', tone: 'danger' },
-  school: { label: 'DESTINO', tone: 'neutral' },
+const stopBadge: Record<ApiRouteStop['status'], { label: string; tone: 'success' | 'danger' | 'neutral' }> = {
+  GOING: { label: 'VAI', tone: 'success' },
+  NOT_GOING: { label: 'NÃO VAI', tone: 'danger' },
+  SCHOOL: { label: 'DESTINO', tone: 'neutral' },
 };
 
-/** Rota do dia com paradas e recálculo automático conforme confirmações. */
+function toMapPoint(stop: ApiRouteStop): MapPoint | null {
+  if (stop.latitude == null || stop.longitude == null) return null;
+  const kind: MapPoint['kind'] =
+    stop.status === 'SCHOOL' ? 'school' : stop.status === 'NOT_GOING' ? 'inactive' : 'pickup';
+  return {
+    id: stop.id,
+    latitude: stop.latitude,
+    longitude: stop.longitude,
+    label: stop.label,
+    order: stop.status === 'SCHOOL' ? undefined : stop.position,
+    kind,
+  };
+}
+
+/** Rota do dia com mapa, posição ao vivo do transportador e otimização. */
 export default function RoutesScreen() {
+  const { token } = useAppState();
+  const [stops, setStops] = useState<ApiRouteStop[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [optimizing, setOptimizing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Envia a localização do aparelho do transportador para a API.
+  const { current, permission } = useLocationBroadcast(token, true);
+
+  const loadRoute = useCallback(async () => {
+    if (!token) return;
+    try {
+      setError(null);
+      const data = await getMyRoute(token);
+      setStops(data);
+    } catch (err: any) {
+      setError(err?.message ?? 'Não foi possível carregar a rota.');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    loadRoute();
+  }, [loadRoute]);
+
+  async function handleOptimize() {
+    if (!token) return;
+    setOptimizing(true);
+    try {
+      setError(null);
+      const data = await optimizeMyRoute(token);
+      setStops(data);
+    } catch (err: any) {
+      setError(err?.message ?? 'Falha ao otimizar a rota.');
+    } finally {
+      setOptimizing(false);
+    }
+  }
+
+  const points = stops.map(toMapPoint).filter((p): p is MapPoint => p !== null);
+  const hasGeo = points.length > 0;
+
   return (
     <Screen>
       <View style={styles.header}>
         <Text style={typography.screenTitle}>Rota do Dia</Text>
         <View style={styles.dateChip}>
           <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
-          <Text style={styles.dateText}>Hoje, 10 Mai</Text>
+          <Text style={styles.dateText}>Hoje</Text>
         </View>
       </View>
 
       <View style={styles.mapWrap}>
-        <MapPlaceholder label="Mapa da Rota" height={200} />
-        <Button label="Otimizar Rota" icon="navigate" style={styles.optimizeBtn} />
+        {hasGeo ? (
+          <LeafletMap
+            points={points}
+            live={current ? { ...current, label: 'Você' } : null}
+            drawPath
+            height={200}
+          />
+        ) : (
+          <MapPlaceholder label={loading ? 'Carregando mapa…' : 'Sem paradas com localização'} height={200} />
+        )}
+        <Button
+          label="Otimizar Rota"
+          icon="navigate"
+          onPress={handleOptimize}
+          loading={optimizing}
+          style={styles.optimizeBtn}
+        />
       </View>
 
-      <View style={styles.list}>
-        {routeStops.map((stop, index) => {
-          const badge = stopBadge[stop.status];
-          const isSchool = stop.status === 'school';
-          return (
-            <Card key={stop.id} style={styles.stopCard}>
-              <View
-                style={[styles.indexCircle, isSchool ? styles.indexSchool : styles.indexDefault]}
-              >
-                {isSchool ? (
-                  <Ionicons name="flag" size={14} color={colors.textOnBrand} />
-                ) : (
-                  <Text style={styles.indexText}>{index + 1}</Text>
-                )}
-              </View>
-              <View style={styles.stopInfo}>
-                <Text style={styles.stopName}>{stop.studentName}</Text>
-                <Text style={styles.stopAddress}>{stop.address}</Text>
-              </View>
-              <Badge label={badge.label} tone={badge.tone} />
-            </Card>
-          );
-        })}
-      </View>
+      {permission === 'denied' ? (
+        <Text style={styles.warn}>
+          Localização desativada — ative para aparecer no mapa dos responsáveis.
+        </Text>
+      ) : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {loading ? (
+        <ActivityIndicator color={colors.brand} style={styles.loader} />
+      ) : (
+        <View style={styles.list}>
+          {stops.map((stop, index) => {
+            const badge = stopBadge[stop.status];
+            const isSchool = stop.status === 'SCHOOL';
+            return (
+              <Card key={stop.id} style={styles.stopCard}>
+                <View style={[styles.indexCircle, isSchool ? styles.indexSchool : styles.indexDefault]}>
+                  {isSchool ? (
+                    <Ionicons name="flag" size={14} color={colors.textOnBrand} />
+                  ) : (
+                    <Text style={styles.indexText}>{index + 1}</Text>
+                  )}
+                </View>
+                <View style={styles.stopInfo}>
+                  <Text style={styles.stopName}>{stop.label}</Text>
+                  <Text style={styles.stopAddress}>{stop.address}</Text>
+                </View>
+                <Badge label={badge.label} tone={badge.tone} />
+              </Card>
+            );
+          })}
+        </View>
+      )}
 
       <Text style={styles.footnote}>
-        Rota recalculada automaticamente com base nas confirmações de presença dos responsáveis.
+        Rota otimizada a partir da sua posição atual (parada mais próxima primeiro), com a escola como destino final.
       </Text>
     </Screen>
   );
@@ -92,6 +176,19 @@ const styles = StyleSheet.create({
     right: spacing.md,
     height: 40,
     paddingHorizontal: spacing.lg,
+  },
+  warn: {
+    fontSize: 12,
+    color: colors.warning,
+    marginBottom: spacing.sm,
+  },
+  error: {
+    fontSize: 12,
+    color: colors.danger,
+    marginBottom: spacing.sm,
+  },
+  loader: {
+    marginVertical: spacing.xl,
   },
   list: {
     gap: spacing.md,

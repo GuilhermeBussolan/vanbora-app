@@ -3,19 +3,43 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppHeader, Button, Input, Logo, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
+import { ApiError } from '@/api/client';
 import { colors, spacing, typography } from '@/theme';
 
-/** Login. Usuário existente entra como responsável com transportador já contratado. */
+/** Login real contra a API: roteia para Responsável ou Transportador conforme o papel. */
 export default function LoginScreen() {
-  const { setRole, setHasTransporter } = useAppState();
+  const { login, setHasTransporter } = useAppState();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin() {
-    // Protótipo: simula um responsável já com transportador contratado.
-    setRole('guardian');
-    setHasTransporter(true);
-    router.replace('/(guardian)/home');
+  async function handleLogin() {
+    if (!email.trim() || !password) {
+      setError('Informe e-mail e senha.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const role = await login(email.trim(), password);
+      if (role === 'transporter') {
+        router.replace('/(transporter)/home');
+      } else {
+        setHasTransporter(true);
+        router.replace('/(guardian)/home');
+      }
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.status === 401 || err.status === 403
+            ? 'E-mail ou senha inválidos.'
+            : err.message
+          : 'Falha ao entrar. Tente novamente.';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -49,9 +73,15 @@ export default function LoginScreen() {
         <Pressable hitSlop={8} style={styles.forgot}>
           <Text style={styles.forgotText}>Esqueci minha senha</Text>
         </Pressable>
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
 
-      <Button label="Entrar" onPress={handleLogin} style={styles.submit} />
+      <Button label="Entrar" onPress={handleLogin} loading={loading} style={styles.submit} />
+
+      <Text style={styles.demoHint}>
+        Demo · responsável: mariana@vanbora.com · transportador: roberto@vanbora.com · senha: 123456
+      </Text>
     </Screen>
   );
 }
@@ -90,5 +120,17 @@ const styles = StyleSheet.create({
   },
   submit: {
     marginTop: spacing.xl,
+  },
+  error: {
+    color: colors.danger,
+    fontSize: 13,
+    marginTop: spacing.md,
+  },
+  demoHint: {
+    color: colors.textMuted,
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: spacing.lg,
+    lineHeight: 16,
   },
 });

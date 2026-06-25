@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius } from '@/theme';
 
@@ -9,6 +9,8 @@ interface AvatarProps {
   /** Usa ícone genérico de pessoa em vez das iniciais. */
   icon?: boolean;
   tone?: 'brand' | 'neutral';
+  /** Foto (URL absoluta). Quando presente, é exibida no lugar das iniciais. */
+  uri?: string | null;
 }
 
 function initials(name?: string): string {
@@ -19,16 +21,17 @@ function initials(name?: string): string {
   return (first + last).toUpperCase();
 }
 
-/** Avatar circular com iniciais ou ícone de pessoa. */
-export function Avatar({ name, size = 44, icon = false, tone = 'brand' }: AvatarProps) {
+/** Avatar circular com foto, iniciais ou ícone de pessoa. */
+export function Avatar({ name, size = 44, icon = false, tone = 'brand', uri }: AvatarProps) {
   const bg = tone === 'brand' ? colors.brandSoft : colors.border;
+  const dimension = { width: size, height: size, borderRadius: radius.pill };
+
+  if (uri) {
+    return <Image source={{ uri }} style={[styles.circle, dimension]} />;
+  }
+
   return (
-    <View
-      style={[
-        styles.circle,
-        { width: size, height: size, borderRadius: radius.pill, backgroundColor: bg },
-      ]}
-    >
+    <View style={[styles.circle, dimension, { backgroundColor: bg }]}>
       {icon || !name ? (
         <Ionicons name="person" size={size * 0.5} color={colors.textSecondary} />
       ) : (
@@ -42,6 +45,7 @@ const styles = StyleSheet.create({
   circle: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   text: {
     fontWeight: '700',
