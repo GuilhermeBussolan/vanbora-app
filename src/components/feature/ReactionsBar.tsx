@@ -3,7 +3,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ReactionGroup } from '@/types';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 interface ReactionsBarProps {
   reactions: ReactionGroup[];
@@ -11,6 +12,7 @@ interface ReactionsBarProps {
 
 /** Mostra as reações (emoji + contagem). Tocar revela QUEM reagiu (modal). */
 export function ReactionsBar({ reactions }: ReactionsBarProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const [open, setOpen] = useState(false);
 
   if (reactions.length === 0) {
@@ -59,7 +61,8 @@ export function ReactionsBar({ reactions }: ReactionsBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   none: { fontSize: 13, color: colors.textMuted },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
   chip: {

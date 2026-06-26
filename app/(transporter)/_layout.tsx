@@ -1,11 +1,14 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 
 /** Navegação por abas do perfil Transportador. */
 export default function TransporterLayout() {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const unread = useUnreadCount();
   return (
     <Tabs
@@ -16,8 +19,8 @@ export default function TransporterLayout() {
         tabBarStyle: {
           backgroundColor: colors.white,
           borderTopColor: colors.border,
-          height: 64,
-          paddingBottom: 8,
+          height: 64 + insets.bottom,
+          paddingBottom: insets.bottom + 8,
           paddingTop: 8,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },

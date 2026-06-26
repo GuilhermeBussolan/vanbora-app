@@ -8,10 +8,12 @@ import { addHelper, uploadHelperPhoto } from '@/api/helpers';
 import { UploadFile } from '@/api/client';
 import { pickImage } from '@/lib/imagePicker';
 import { HELPER_ROLES } from '@/lib/helperRoles';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Cadastro de um novo ajudante/monitor do transportador. */
 export default function AddHelperScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
@@ -87,7 +89,8 @@ export default function AddHelperScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginTop: spacing.md },
   subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },
   photoSection: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },

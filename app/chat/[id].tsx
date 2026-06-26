@@ -17,10 +17,12 @@ import { useAppState } from '@/context/AppState';
 import { listMessages, markConversationRead, sendMessage } from '@/api/chat';
 import { ChatSocket } from '@/realtime/chatSocket';
 import { MessageDto } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Conversa individual em tempo real (WebSocket) — compartilhada pelos dois perfis. */
 export default function ChatScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const conversationId = Number(id);
   const { token, user } = useAppState();
@@ -130,7 +132,8 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.background,

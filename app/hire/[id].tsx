@@ -9,10 +9,12 @@ import { listDependents } from '@/api/dependents';
 import { formatCurrency } from '@/data/mockData';
 import { DependentDto } from '@/types';
 import { parseAmount } from '../add-expense';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Envio de solicitação de contratação: escolha do aluno + proposta de valor opcional. */
 export default function HireScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const params = useLocalSearchParams<{ id: string; name?: string; fee?: string; proposals?: string }>();
   const transporterId = Number(params.id);
@@ -167,7 +169,8 @@ export default function HireScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.xxxl },
   title: { marginTop: spacing.md },
   subtitle: { fontSize: 14, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },

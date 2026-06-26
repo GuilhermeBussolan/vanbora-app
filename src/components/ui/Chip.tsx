@@ -1,7 +1,8 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 interface ChipProps {
   label: string;
@@ -15,6 +16,7 @@ interface ChipProps {
 
 /** Chip de filtro / tag (bairros, escolas, filtros de lista). */
 export function Chip({ label, selected = false, removable = false, onPress, onRemove }: ChipProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <Pressable
       onPress={onPress}
@@ -30,7 +32,8 @@ export function Chip({ label, selected = false, removable = false, onPress, onRe
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

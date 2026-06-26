@@ -5,10 +5,12 @@ import { AppHeader, Button, Input, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { changePassword } from '@/api/account';
 import { ApiError } from '@/api/client';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Troca de senha do usuário autenticado. */
 export default function ChangePasswordScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -83,7 +85,8 @@ export default function ChangePasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginTop: spacing.md, marginBottom: spacing.xl },
   field: { marginBottom: spacing.md },
   error: { fontSize: 13, color: colors.danger, marginTop: spacing.sm },

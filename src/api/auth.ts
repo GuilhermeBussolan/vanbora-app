@@ -48,7 +48,6 @@ export interface RegisterTransporterBody {
   document?: string;
   cnh?: string;
   plate?: string;
-  capacity?: number | null;
   schools?: string[];
   neighborhoods?: string[];
   baseMonthlyFee?: number | null;

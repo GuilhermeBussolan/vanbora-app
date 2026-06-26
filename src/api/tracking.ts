@@ -27,7 +27,11 @@ export function postMyLocation(
   });
 }
 
-/** [Responsável] Posição atual do transportador contratado + paradas. */
-export function getGuardianTracking(token: string): Promise<GuardianTracking> {
-  return apiFetch<GuardianTracking>('/api/guardians/me/tracking', { token });
+/** [Responsável] Posição atual do transportador do dependente + paradas. */
+export function getGuardianTracking(
+  token: string,
+  dependentId?: number | null,
+): Promise<GuardianTracking> {
+  const q = dependentId != null ? `?dependentId=${dependentId}` : '';
+  return apiFetch<GuardianTracking>(`/api/guardians/me/tracking${q}`, { token });
 }

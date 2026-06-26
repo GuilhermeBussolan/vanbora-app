@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme';
+import { useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 interface StarRatingProps {
   rating: number;
@@ -13,6 +14,7 @@ interface StarRatingProps {
 
 /** Linha de estrelas com nota e legenda opcional. */
 export function StarRating({ rating, size = 14, showValue = true, caption }: StarRatingProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const stars = [1, 2, 3, 4, 5];
   return (
     <View style={styles.row}>
@@ -27,7 +29,8 @@ export function StarRating({ rating, size = 14, showValue = true, caption }: Sta
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

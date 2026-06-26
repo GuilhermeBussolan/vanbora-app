@@ -5,10 +5,12 @@ import { AppHeader, Button, Input, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { getFinanceSummary, updateFinanceSettings } from '@/api/finance';
 import { parseAmount } from './add-expense';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Ajustes financeiros: meta de receita mensal e intervalo de manutenção (km). */
 export default function FinanceSettingsScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [goal, setGoal] = useState('');
   const [intervalKm, setIntervalKm] = useState('');
@@ -100,7 +102,8 @@ export default function FinanceSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.xxxl },
   title: { marginTop: spacing.md },
   subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },

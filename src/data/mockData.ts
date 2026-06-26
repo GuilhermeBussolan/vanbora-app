@@ -146,7 +146,6 @@ export const transporterProfile = {
   name: 'Roberto Almeida',
   cnh: '••• ••• 1234',
   plate: 'ABC-1D34',
-  capacity: 15,
   neighborhoods: ['Centro', 'Vila Nova', 'Jd. América'],
   schools: ['Colégio Objetivo', 'Escola Adventista'],
 };

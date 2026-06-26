@@ -7,7 +7,8 @@ import { useAppState } from '@/context/AppState';
 import { useLocationBroadcast } from '@/hooks/useLocationBroadcast';
 import { getMyRoute, optimizeMyRoute } from '@/api/tracking';
 import { ApiRouteStop } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 const stopBadge: Record<ApiRouteStop['status'], { label: string; tone: 'success' | 'danger' | 'neutral' }> = {
   GOING: { label: 'VAI', tone: 'success' },
@@ -31,6 +32,7 @@ function toMapPoint(stop: ApiRouteStop): MapPoint | null {
 
 /** Rota do dia com mapa, posição ao vivo do transportador e otimização. */
 export default function RoutesScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [stops, setStops] = useState<ApiRouteStop[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,7 +147,8 @@ export default function RoutesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',

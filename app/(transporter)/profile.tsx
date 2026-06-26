@@ -9,18 +9,21 @@ import { mediaUrl } from '@/api/client';
 import { pickImage } from '@/lib/imagePicker';
 import { formatCurrency } from '@/data/mockData';
 import { HelperDto, TransporterProfileDto } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 type SettingItem = { icon: keyof typeof Ionicons.glyphMap; label: string; route: string };
 
 const SETTINGS: SettingItem[] = [
   { icon: 'lock-closed-outline', label: 'Alterar Senha', route: '/change-password' },
   { icon: 'notifications-outline', label: 'Notificações', route: '/notifications-settings' },
+  { icon: 'moon-outline', label: 'Aparência', route: '/appearance-settings' },
   { icon: 'document-text-outline', label: 'Termos de Uso', route: '/terms' },
 ];
 
 /** Perfil do Transportador: dados do veículo, ajudantes, atendimento e configurações. */
 export default function TransporterProfileScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { user, token, logout } = useAppState();
   const [profile, setProfile] = useState<TransporterProfileDto | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -82,7 +85,6 @@ export default function TransporterProfileScreen() {
           <Text style={styles.meta}>
             CNH {profile?.cnh ?? '—'} • Placa {profile?.plate ?? '—'}
           </Text>
-          <Text style={styles.meta}>Capacidade: {profile?.capacity ?? '—'} lugares</Text>
         </View>
         <Pressable onPress={() => router.push('/edit-vehicle')} hitSlop={8}>
           <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
@@ -186,6 +188,7 @@ export default function TransporterProfileScreen() {
 
 /** Linha de um ajudante, clicável para editar. */
 function HelperRow({ helper }: { helper: HelperDto }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <Pressable
       onPress={() =>
@@ -218,7 +221,8 @@ function HelperRow({ helper }: { helper: HelperDto }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginBottom: spacing.lg },
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
   photoWrap: { position: 'relative' },

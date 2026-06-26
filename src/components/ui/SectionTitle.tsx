@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 interface SectionTitleProps {
   title: string;
@@ -12,6 +13,7 @@ interface SectionTitleProps {
 
 /** Título de seção com ação opcional alinhada à direita. */
 export function SectionTitle({ title, actionLabel, onAction, style }: SectionTitleProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <View style={[styles.row, style]}>
       <Text style={typography.sectionTitle}>{title}</Text>
@@ -24,7 +26,8 @@ export function SectionTitle({ title, actionLabel, onAction, style }: SectionTit
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

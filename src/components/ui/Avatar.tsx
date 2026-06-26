@@ -1,7 +1,8 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radius } from '@/theme';
+import { radius, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 interface AvatarProps {
   name?: string;
@@ -23,6 +24,7 @@ function initials(name?: string): string {
 
 /** Avatar circular com foto, iniciais ou ícone de pessoa. */
 export function Avatar({ name, size = 44, icon = false, tone = 'brand', uri }: AvatarProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const bg = tone === 'brand' ? colors.brandSoft : colors.border;
   const dimension = { width: size, height: size, borderRadius: radius.pill };
 
@@ -41,7 +43,8 @@ export function Avatar({ name, size = 44, icon = false, tone = 'brand', uri }: A
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   circle: {
     alignItems: 'center',
     justifyContent: 'center',

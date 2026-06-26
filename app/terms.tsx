@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppHeader, Screen } from '@/components';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 const SECTIONS: { title: string; body: string }[] = [
   {
@@ -28,6 +29,7 @@ const SECTIONS: { title: string; body: string }[] = [
 
 /** Termos de uso do VanBora (conteúdo estático). */
 export default function TermsScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <Screen>
       <AppHeader showBack />
@@ -44,7 +46,8 @@ export default function TermsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginTop: spacing.md },
   updated: { fontSize: 12, color: colors.textMuted, marginTop: spacing.xs, marginBottom: spacing.lg },
   section: { marginBottom: spacing.lg },

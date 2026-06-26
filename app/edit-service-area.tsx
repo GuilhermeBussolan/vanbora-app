@@ -2,16 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AppHeader, Button, Input, Screen } from '@/components';
+import { AppHeader, Button, Input, Screen, SchoolRegisterModal } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { getMyProfile, updateServiceArea } from '@/api/transporter';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Edição da área de atendimento: escolas e bairros atendidos. */
 export default function EditServiceAreaScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [schools, setSchools] = useState<string[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+  const [schoolModalOpen, setSchoolModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,13 +63,32 @@ export default function EditServiceAreaScreen() {
         Os responsáveis veem estas escolas e bairros no seu perfil. As mudanças aparecem para eles na hora.
       </Text>
 
-      <EditableList
-        label="Escolas atendidas"
-        icon="school-outline"
-        placeholder="Adicionar escola"
-        items={schools}
-        onChange={setSchools}
-      />
+      <View style={styles.section}>
+        <Text style={styles.fieldLabel}>Escolas atendidas</Text>
+        <Button
+          label="Adicionar escola por CEP"
+          variant="outline"
+          icon="add"
+          onPress={() => setSchoolModalOpen(true)}
+        />
+        <View style={styles.chips}>
+          {schools.length === 0 ? (
+            <Text style={styles.empty}>Nenhuma escola adicionada.</Text>
+          ) : (
+            schools.map((item) => (
+              <Pressable
+                key={item}
+                onPress={() => setSchools(schools.filter((s) => s !== item))}
+                style={styles.chip}
+              >
+                <Text style={styles.chipText}>{item}</Text>
+                <Ionicons name="close" size={14} color={colors.textSecondary} />
+              </Pressable>
+            ))
+          )}
+        </View>
+      </View>
+
       <EditableList
         label="Bairros atendidos"
         icon="location-outline"
@@ -76,6 +98,18 @@ export default function EditServiceAreaScreen() {
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <SchoolRegisterModal
+        visible={schoolModalOpen}
+        onClose={() => setSchoolModalOpen(false)}
+        onAdded={(schoolName) =>
+          setSchools((prev) =>
+            prev.some((s) => s.toLowerCase() === schoolName.toLowerCase())
+              ? prev
+              : [...prev, schoolName],
+          )
+        }
+      />
     </Screen>
   );
 }
@@ -93,6 +127,7 @@ function EditableList({
   items: string[];
   onChange: (next: string[]) => void;
 }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const [draft, setDraft] = useState('');
 
   function add() {
@@ -141,7 +176,8 @@ function EditableList({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.xxxl },
   title: { marginTop: spacing.md },
   subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg, lineHeight: 19 },

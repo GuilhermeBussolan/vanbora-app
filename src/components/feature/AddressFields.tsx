@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Input } from '@/components';
 import { formatCep, lookupCep } from '@/lib/cepLookup';
-import { colors, spacing } from '@/theme';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 export interface AddressValue {
   cep: string;
@@ -28,6 +29,7 @@ export function AddressFields({
   value: AddressValue;
   onChange: (next: AddressValue) => void;
 }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const [looking, setLooking] = useState(false);
   const [lastCep, setLastCep] = useState('');
 
@@ -99,7 +101,8 @@ export function AddressFields({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   container: { gap: spacing.md },
   cepRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   flex1: { flex: 1 },

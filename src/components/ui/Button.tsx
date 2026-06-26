@@ -8,7 +8,8 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost';
 
@@ -32,6 +33,7 @@ export function Button({
   disabled = false,
   style,
 }: ButtonProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
   const isOutline = variant === 'outline';
@@ -39,7 +41,7 @@ export function Button({
   const textColor = isPrimary
     ? colors.textOnBrand
     : isSecondary
-      ? colors.white
+      ? '#FFFFFF' // texto sempre sobre o botão escuro (secundário): branco fixo nos dois temas
       : colors.textPrimary;
 
   return (
@@ -71,7 +73,8 @@ export function Button({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   base: {
     height: 52,
     borderRadius: radius.md,

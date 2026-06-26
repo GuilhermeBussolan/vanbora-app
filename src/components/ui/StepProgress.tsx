@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 interface StepProgressProps {
   steps: number;
@@ -9,6 +10,7 @@ interface StepProgressProps {
 
 /** Barra de progresso por etapas (cadastro do transportador). */
 export function StepProgress({ steps, current }: StepProgressProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <View style={styles.row}>
       {Array.from({ length: steps }).map((_, i) => (
@@ -21,7 +23,8 @@ export function StepProgress({ steps, current }: StepProgressProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: spacing.sm,

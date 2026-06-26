@@ -7,10 +7,12 @@ import { useAppState } from '@/context/AppState';
 import { getMyNotice, updateNotice } from '@/api/notices';
 import { consumeAudienceResult, openAudience } from '@/lib/audienceSelection';
 import { NoticePriority } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Edição de aviso: título, texto, prioridade, comentários, destinatários, reagendamento. */
 export default function EditNoticeScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const noticeId = Number(id);
   const { token } = useAppState();
@@ -196,6 +198,7 @@ function Chip({
   onPress: () => void;
   danger?: boolean;
 }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const activeBg = danger ? colors.danger : colors.brand;
   return (
     <Pressable onPress={onPress} style={[styles.chip, active && { backgroundColor: activeBg, borderColor: activeBg }]}>
@@ -205,7 +208,8 @@ function Chip({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginTop: spacing.md, marginBottom: spacing.lg },
   titleInput: {
     height: 48,

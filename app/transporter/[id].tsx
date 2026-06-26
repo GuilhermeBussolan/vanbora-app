@@ -7,7 +7,6 @@ import {
   Avatar,
   Button,
   Card,
-  Chip,
   Screen,
   SectionTitle,
   StarRating,
@@ -17,10 +16,12 @@ import { getPublicProfile } from '@/api/transporter';
 import { startConversation } from '@/api/chat';
 import { mediaUrl } from '@/api/client';
 import { TransporterDetailDto } from '@/types';
-import { colors, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Perfil público do transportador, visto pelo responsável antes de contratar. */
 export default function PublicTransporterProfile() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAppState();
   const [transporter, setTransporter] = useState<TransporterDetailDto | null>(null);
@@ -148,18 +149,36 @@ export default function PublicTransporterProfile() {
       )}
 
       <SectionTitle title="Escolas Atendidas" style={styles.section} />
-      <View style={styles.chips}>
-        {transporter.schools.map((s) => (
-          <Chip key={s} label={s} />
-        ))}
-      </View>
+      {transporter.schools.length === 0 ? (
+        <Text style={styles.empty}>Nenhuma escola informada.</Text>
+      ) : (
+        <View style={styles.facList}>
+          {transporter.schools.map((s) => (
+            <View key={s} style={styles.facItem}>
+              <View style={styles.facCircle}>
+                <Ionicons name="school" size={15} color={colors.textOnBrand} />
+              </View>
+              <Text style={styles.facLabel}>{s}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       <SectionTitle title="Bairros Atendidos" style={styles.section} />
-      <View style={styles.chips}>
-        {transporter.neighborhoods.map((n) => (
-          <Chip key={n} label={n} />
-        ))}
-      </View>
+      {transporter.neighborhoods.length === 0 ? (
+        <Text style={styles.empty}>Nenhum bairro informado.</Text>
+      ) : (
+        <View style={styles.facList}>
+          {transporter.neighborhoods.map((n) => (
+            <View key={n} style={styles.facItem}>
+              <View style={styles.facCircle}>
+                <Ionicons name="location" size={15} color={colors.textOnBrand} />
+              </View>
+              <Text style={styles.facLabel}>{n}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       <SectionTitle title="Avaliações de outros responsáveis" style={styles.section} />
       {transporter.reviews.length === 0 ? (
@@ -181,7 +200,8 @@ export default function PublicTransporterProfile() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.xxxl },
   errorCard: { marginTop: spacing.lg, alignItems: 'center' },
   errorText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
@@ -196,7 +216,27 @@ const styles = StyleSheet.create({
   helperInfo: { flex: 1, gap: 2 },
   helperName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   helperRole: { fontSize: 12, color: colors.textSecondary },
-  chips: { flexDirection: 'row', flexWrap: 'wrap' },
+  facList: { gap: spacing.sm },
+  facItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  facCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  facLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   reviews: { gap: spacing.md },
   reviewHead: {
     flexDirection: 'row',

@@ -5,7 +5,8 @@ import { AppHeader, Button, Screen } from '@/components';
 import { AddressFields, AddressValue, EMPTY_ADDRESS } from '@/components/feature/AddressFields';
 import { useAppState } from '@/context/AppState';
 import { AddressDto, getMyGuardianProfile, updateAddress } from '@/api/guardian';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 function toValue(a: AddressDto | null | undefined): AddressValue {
   if (!a) return EMPTY_ADDRESS;
@@ -20,6 +21,7 @@ function toValue(a: AddressDto | null | undefined): AddressValue {
 
 /** Edição dos endereços de embarque e entrega do responsável (com regeocodificação). */
 export default function EditAddressScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [pickup, setPickup] = useState<AddressValue>(EMPTY_ADDRESS);
   const [deliverySame, setDeliverySame] = useState(true);
@@ -109,7 +111,8 @@ export default function EditAddressScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.xxxl },
   title: { marginTop: spacing.md, marginBottom: spacing.sm },
   section: { marginTop: spacing.lg, marginBottom: spacing.xs },

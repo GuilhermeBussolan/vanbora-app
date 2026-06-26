@@ -5,13 +5,15 @@ import { Avatar, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { listConversations } from '@/api/chat';
 import { ConversationDto } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /**
  * Lista de conversas, reutilizada pelos perfis Responsável e Transportador.
  * Carrega as conversas reais da API.
  */
 export function ChatList() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [conversations, setConversations] = useState<ConversationDto[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -70,7 +72,8 @@ export function ChatList() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: {
     marginBottom: spacing.lg,
   },

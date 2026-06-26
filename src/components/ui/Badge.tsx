@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 type Tone = 'success' | 'warning' | 'danger' | 'neutral';
 
@@ -9,15 +10,15 @@ interface BadgeProps {
   tone?: Tone;
 }
 
-const toneMap: Record<Tone, { bg: string; fg: string }> = {
-  success: { bg: colors.successBg, fg: colors.success },
-  warning: { bg: colors.warningBg, fg: colors.warning },
-  danger: { bg: colors.dangerBg, fg: colors.danger },
-  neutral: { bg: colors.border, fg: colors.textSecondary },
-};
-
 /** Etiqueta de status compacta (PAGO, PENDENTE, ATRASADO, etc.). */
 export function Badge({ label, tone = 'neutral' }: BadgeProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
+  const toneMap: Record<Tone, { bg: string; fg: string }> = {
+    success: { bg: colors.successBg, fg: colors.success },
+    warning: { bg: colors.warningBg, fg: colors.warning },
+    danger: { bg: colors.dangerBg, fg: colors.danger },
+    neutral: { bg: colors.border, fg: colors.textSecondary },
+  };
   const { bg, fg } = toneMap[tone];
   return (
     <View style={[styles.badge, { backgroundColor: bg }]}>
@@ -26,7 +27,8 @@ export function Badge({ label, tone = 'neutral' }: BadgeProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   badge: {
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.md,

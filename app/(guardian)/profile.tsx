@@ -4,9 +4,10 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar, Button, Card, Screen, SectionTitle } from '@/components';
 import { useAppState } from '@/context/AppState';
-import { listDependents } from '@/api/dependents';
-import { DependentDto } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { listContracts } from '@/api/contracts';
+import { ContractDto } from '@/types';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 type SettingItem = { icon: keyof typeof Ionicons.glyphMap; label: string; route: string };
 
@@ -14,27 +15,35 @@ const SETTINGS: SettingItem[] = [
   { icon: 'location-outline', label: 'Meu Endereço', route: '/edit-address' },
   { icon: 'lock-closed-outline', label: 'Alterar Senha', route: '/change-password' },
   { icon: 'notifications-outline', label: 'Notificações', route: '/notifications-settings' },
+  { icon: 'moon-outline', label: 'Aparência', route: '/appearance-settings' },
   { icon: 'document-text-outline', label: 'Termos de Uso', route: '/terms' },
 ];
 
 /** Perfil do Responsável: dados, dependentes e configurações. */
 export default function GuardianProfileScreen() {
-  const { user, token, logout } = useAppState();
-  const [dependents, setDependents] = useState<DependentDto[]>([]);
+  const { colors, typography, styles } = useThemedScreen(createStyles);
+  const { user, token, logout, dependents, selectedDependentId, selectDependent, refreshDependents } =
+    useAppState();
+  const [activeContract, setActiveContract] = useState<ContractDto | null>(null);
 
-  // Carrega dependentes reais sempre que a tela ganha foco.
+  // Atualiza dependentes e o contrato ativo do dependente selecionado ao focar.
   useFocusEffect(
     useCallback(() => {
       let active = true;
       if (token) {
-        listDependents(token)
-          .then((list) => active && setDependents(list))
-          .catch(() => active && setDependents([]));
+        refreshDependents();
+        listContracts(token, 'ACTIVE')
+          .then(
+            (list) =>
+              active &&
+              setActiveContract(list.find((c) => c.dependentId === selectedDependentId) ?? null),
+          )
+          .catch(() => active && setActiveContract(null));
       }
       return () => {
         active = false;
       };
-    }, [token]),
+    }, [token, selectedDependentId, refreshDependents]),
   );
 
   function handleLogout() {
@@ -55,21 +64,44 @@ export default function GuardianProfileScreen() {
       </View>
 
       <SectionTitle title="Meus Dependentes" style={styles.section} />
+      {dependents.length > 1 ? (
+        <Text style={styles.sectionHint}>Toque para escolher qual filho(a) o app está exibindo.</Text>
+      ) : null}
       <View style={styles.list}>
         {dependents.length === 0 ? (
           <Card>
             <Text style={styles.empty}>Nenhum dependente cadastrado ainda.</Text>
           </Card>
         ) : (
-          dependents.map((dep) => (
-            <Card key={dep.id} style={styles.dependentCard}>
-              <Avatar name={dep.name} size={40} tone="neutral" />
-              <View style={styles.dependentInfo}>
-                <Text style={styles.dependentName}>{dep.name}</Text>
-                <Text style={styles.dependentSchool}>{dep.school}</Text>
-              </View>
-            </Card>
-          ))
+          dependents.map((dep) => {
+            const sel = dep.id === selectedDependentId;
+            return (
+              <Pressable key={dep.id} onPress={() => selectDependent(dep.id)}>
+                <Card style={StyleSheet.flatten([styles.dependentCard, sel && styles.dependentCardSel])}>
+                  <Avatar name={dep.name} size={40} tone="neutral" />
+                  <View style={styles.dependentInfo}>
+                    <Text style={styles.dependentName}>{dep.name}</Text>
+                    <Text style={styles.dependentSchool}>{dep.school}</Text>
+                  </View>
+                  {sel ? (
+                    <Ionicons name="checkmark-circle" size={22} color={colors.brandDark} />
+                  ) : null}
+                  <Pressable
+                    hitSlop={8}
+                    style={styles.editDep}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/edit-dependent',
+                        params: { id: String(dep.id), name: dep.name, school: dep.school },
+                      })
+                    }
+                  >
+                    <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
+                  </Pressable>
+                </Card>
+              </Pressable>
+            );
+          })
         )}
       </View>
 
@@ -80,6 +112,48 @@ export default function GuardianProfileScreen() {
         onPress={() => router.push('/add-dependent')}
         style={styles.addBtn}
       />
+
+      {activeContract ? (
+        <>
+          <SectionTitle title="Meu Transporte" style={styles.section} />
+          <Card padded={false}>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/review-transporter',
+                  params: {
+                    transporterId: String(activeContract.transporterId),
+                    name: activeContract.transporterName,
+                  },
+                })
+              }
+              style={[styles.settingRow, styles.settingDivider]}
+            >
+              <Ionicons name="star-outline" size={18} color={colors.textSecondary} />
+              <Text style={styles.settingLabel}>Reavaliar Transportador</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/review-transporter',
+                  params: {
+                    mode: 'cancel',
+                    contractId: String(activeContract.id),
+                    transporterId: String(activeContract.transporterId),
+                    name: activeContract.transporterName,
+                  },
+                })
+              }
+              style={styles.settingRow}
+            >
+              <Ionicons name="close-circle-outline" size={18} color={colors.danger} />
+              <Text style={[styles.settingLabel, styles.dangerLabel]}>Cancelar Transporte</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </Pressable>
+          </Card>
+        </>
+      ) : null}
 
       <SectionTitle title="Configurações" style={styles.section} />
       <Card padded={false}>
@@ -104,7 +178,8 @@ export default function GuardianProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: {
     marginBottom: spacing.lg,
   },
@@ -132,10 +207,22 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
+  sectionHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
   dependentCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+  },
+  dependentCardSel: {
+    borderColor: colors.brand,
+    borderWidth: 1.5,
+  },
+  editDep: {
+    padding: 4,
   },
   dependentInfo: {
     flex: 1,
@@ -168,6 +255,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.textPrimary,
+  },
+  dangerLabel: {
+    color: colors.danger,
   },
   logout: {
     flexDirection: 'row',

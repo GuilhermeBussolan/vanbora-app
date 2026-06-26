@@ -5,10 +5,12 @@ import { AppHeader, Button, Input, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { addFuel } from '@/api/finance';
 import { parseAmount } from './add-expense';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Registro de um abastecimento (litros + valor). */
 export default function AddFuelScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [liters, setLiters] = useState('');
   const [amount, setAmount] = useState('');
@@ -70,7 +72,8 @@ export default function AddFuelScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginTop: spacing.md },
   subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.sm },

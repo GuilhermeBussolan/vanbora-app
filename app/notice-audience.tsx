@@ -7,10 +7,12 @@ import { useAppState } from '@/context/AppState';
 import { getAudience } from '@/api/notices';
 import { commitAudience, getAudienceSeed } from '@/lib/audienceSelection';
 import { AudienceRecipient } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Seleção de destinatários: Todos, filtros por escola/bairro e marcação individual. */
 export default function NoticeAudienceScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [recipients, setRecipients] = useState<AudienceRecipient[]>([]);
   // null = todos; Set = ids selecionados.
@@ -129,7 +131,8 @@ export default function NoticeAudienceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginTop: spacing.md, marginBottom: spacing.lg },
   allRow: {
     flexDirection: 'row',

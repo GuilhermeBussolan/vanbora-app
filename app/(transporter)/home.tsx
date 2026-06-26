@@ -9,10 +9,12 @@ import { listMyNotices } from '@/api/notices';
 import { getDashboard, DashboardMetrics } from '@/api/dashboard';
 import { HireRequestDto, TransporterNoticeDto } from '@/types';
 import { currentTransporterName, formatCurrency } from '@/data/mockData';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Dashboard do Transportador: métricas do dia, solicitações e avisos recentes. */
 export default function TransporterHomeScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token, user } = useAppState();
   const [requests, setRequests] = useState<HireRequestDto[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -167,6 +169,7 @@ export default function TransporterHomeScreen() {
 
 /** Aviso mais recente do transportador, clicável → detalhe/engajamento. */
 function RecentNoticeCard() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [notice, setNotice] = useState<TransporterNoticeDto | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -224,7 +227,8 @@ function RecentNoticeCard() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   greeting: {
     marginBottom: spacing.xl,
   },

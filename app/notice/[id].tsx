@@ -15,7 +15,8 @@ import {
   setReaction,
 } from '@/api/notices';
 import { GuardianNoticeDto, NoticeCommentDto, NOTICE_EMOJIS } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', {
@@ -28,6 +29,7 @@ function formatDate(iso: string): string {
 
 /** Aviso em tela cheia (responsável): prioridade, reação, quem reagiu e comentários. */
 export default function NoticeDetailScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const noticeId = Number(id);
   const { token } = useAppState();
@@ -145,7 +147,8 @@ export default function NoticeDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   empty: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xxl },
   head: {
     flexDirection: 'row',

@@ -18,10 +18,12 @@ import {
   SuggestionDto,
 } from '@/api/finance';
 import { formatCurrency } from '@/data/mockData';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Painel financeiro do transportador: receitas, despesas, km, consumo, metas e sugestões. */
 export default function FinanceScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
   const [suggestions, setSuggestions] = useState<SuggestionDto[]>([]);
@@ -331,6 +333,7 @@ export default function FinanceScreen() {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <View style={styles.metric}>
       <Text style={styles.summaryLabel}>{label}</Text>
@@ -356,7 +359,8 @@ function formatDate(iso: string): string {
   return `${d}/${m}`;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.xxxl },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { marginBottom: spacing.lg },

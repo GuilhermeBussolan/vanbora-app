@@ -6,7 +6,8 @@ import { AppHeader, Card, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { listGuardianNotices } from '@/api/notices';
 import { GuardianNoticeDto } from '@/types';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', {
@@ -19,6 +20,7 @@ function formatDate(iso: string): string {
 
 /** Lista de avisos do responsável; cada um abre em tela cheia. */
 export default function GuardianNoticesScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [notices, setNotices] = useState<GuardianNoticeDto[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -78,7 +80,8 @@ export default function GuardianNoticesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   empty: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xxl },
   list: { gap: spacing.md },
   head: {

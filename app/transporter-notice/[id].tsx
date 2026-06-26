@@ -8,7 +8,8 @@ import { ReactionsBar } from '@/components/feature/ReactionsBar';
 import { useAppState } from '@/context/AppState';
 import { getMyNotice, listTransporterComments, moderateComment } from '@/api/notices';
 import { NoticeCommentDto, TransporterNoticeDto } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', {
@@ -21,6 +22,7 @@ function formatDate(iso: string): string {
 
 /** Visão do transportador sobre o próprio aviso: engajamento, comentários e editar. */
 export default function TransporterNoticeScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const noticeId = Number(id);
   const { token } = useAppState();
@@ -140,6 +142,7 @@ export default function TransporterNoticeScreen() {
 }
 
 function Stat({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <View style={styles.stat}>
       <Ionicons name={icon} size={15} color={colors.textSecondary} />
@@ -148,7 +151,8 @@ function Stat({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: st
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   empty: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xxl },
   badges: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, marginBottom: spacing.lg },
   badge: {

@@ -4,14 +4,16 @@ import { router } from 'expo-router';
 import { AppHeader, Button, Input, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { getMyProfile, updateVehicle } from '@/api/transporter';
-import { colors, spacing, typography } from '@/theme';
+import { formatCnh, formatPlate, isValidCnh, isValidPlate } from '@/lib/validation';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Edição dos dados do veículo do transportador (CNH, placa, capacidade). */
 export default function EditVehicleScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [cnh, setCnh] = useState('');
   const [plate, setPlate] = useState('');
-  const [capacity, setCapacity] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,16 +24,18 @@ export default function EditVehicleScreen() {
       .then((p) => {
         setCnh(p.cnh ?? '');
         setPlate(p.plate ?? '');
-        setCapacity(p.capacity != null ? String(p.capacity) : '');
       })
       .catch((err) => setError(err?.message ?? 'Falha ao carregar os dados.'))
       .finally(() => setLoading(false));
   }, [token]);
 
   async function handleSave() {
-    const capacityValue = capacity.trim() ? Math.round(Number(capacity.trim())) : null;
-    if (capacity.trim() && (capacityValue == null || Number.isNaN(capacityValue) || capacityValue < 1)) {
-      setError('Capacidade inválida.');
+    if (cnh.trim() && !isValidCnh(cnh)) {
+      setError('CNH inválida. Informe os 11 dígitos do número de registro.');
+      return;
+    }
+    if (plate.trim() && !isValidPlate(plate)) {
+      setError('Placa inválida. Use até 7 caracteres (letras e números).');
       return;
     }
     if (!token) return;
@@ -41,7 +45,6 @@ export default function EditVehicleScreen() {
       await updateVehicle(token, {
         cnh: cnh.trim() || null,
         plate: plate.trim() || null,
-        capacity: capacityValue,
       });
       router.back();
     } catch (err: any) {
@@ -69,25 +72,24 @@ export default function EditVehicleScreen() {
       <Text style={styles.subtitle}>Mantenha as informações do seu transporte atualizadas.</Text>
 
       <Text style={styles.fieldLabel}>CNH</Text>
-      <Input icon="card-outline" placeholder="Número da CNH" value={cnh} onChangeText={setCnh} containerStyle={styles.field} />
+      <Input
+        icon="card-outline"
+        placeholder="11 dígitos"
+        value={cnh}
+        onChangeText={(v) => setCnh(formatCnh(v))}
+        keyboardType="numeric"
+        maxLength={11}
+        containerStyle={styles.field}
+      />
 
       <Text style={styles.fieldLabel}>Placa</Text>
       <Input
         icon="car-outline"
-        placeholder="ABC-1D34"
+        placeholder="ABC1D34"
         value={plate}
-        onChangeText={setPlate}
+        onChangeText={(v) => setPlate(formatPlate(v))}
         autoCapitalize="characters"
-        containerStyle={styles.field}
-      />
-
-      <Text style={styles.fieldLabel}>Capacidade (lugares)</Text>
-      <Input
-        icon="people-outline"
-        placeholder="Ex.: 15"
-        value={capacity}
-        onChangeText={setCapacity}
-        keyboardType="numeric"
+        maxLength={7}
         containerStyle={styles.field}
       />
 
@@ -96,7 +98,8 @@ export default function EditVehicleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.xxxl },
   title: { marginTop: spacing.md },
   subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },

@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppHeader, Avatar, Badge, Card, Chip, Input, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { listMyStudents, StudentDto } from '@/api/dashboard';
-import { colors, spacing } from '@/theme';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 type Filter = 'all' | 'confirmed' | 'absent' | 'overdue';
 
@@ -30,6 +31,7 @@ const financeBadge: Record<string, { label: string; tone: 'success' | 'warning' 
 
 /** Lista de alunos do transportador com busca, filtros e detalhes expansíveis. */
 export default function StudentsScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const params = useLocalSearchParams<{ filter?: string }>();
   const [filter, setFilter] = useState<Filter>(paramToFilter(params.filter));
@@ -120,6 +122,7 @@ function StudentCard({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const badge = financeBadge[student.financeStatus];
   return (
     <Card>
@@ -160,6 +163,7 @@ function StudentCard({
 }
 
 function DetailRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <View style={styles.detailRow}>
       <Ionicons name={icon} size={14} color={colors.textSecondary} />
@@ -168,7 +172,8 @@ function DetailRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text:
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   search: { marginBottom: spacing.lg },
   filters: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
   center: { paddingTop: spacing.xxxl, alignItems: 'center' },

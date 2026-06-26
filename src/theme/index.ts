@@ -1,7 +1,11 @@
-export { colors } from './colors';
-export type { ColorName } from './colors';
+export { colors, lightColors, darkColors } from './colors';
+export type { ColorName, ThemeColors } from './colors';
 export { spacing, radius } from './spacing';
-export { typography } from './typography';
+export { typography, createTypography } from './typography';
+export type { Typography } from './typography';
+export { ThemeProvider, useTheme, useThemedScreen } from './ThemeContext';
+export { loadThemePref, saveThemePref, defaultThemePref } from './themePref';
+export type { ThemePref } from './themePref';
 
 /** Sombra leve padronizada para cards. */
 export const cardShadow = {

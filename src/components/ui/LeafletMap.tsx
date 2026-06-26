@@ -3,7 +3,8 @@ import { Modal, Platform, Pressable, StyleSheet, Text, View, ViewStyle } from 'r
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 export interface MapPoint {
   id: string | number;
@@ -118,6 +119,7 @@ const HTML = `<!DOCTYPE html>
 
 /** Canvas do mapa: WebView (nativo) ou iframe (web). Atualiza sem recarregar no nativo. */
 function MapCanvas({ payload }: { payload: Payload }) {
+  const { colors, styles } = useThemedScreen(createStyles);
   const webRef = useRef<WebView>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -162,6 +164,7 @@ export function LeafletMap({
   style,
   expandable = true,
 }: LeafletMapProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const [fullscreen, setFullscreen] = useState(false);
 
   const payload: Payload = useMemo(() => ({ points, live, drawPath }), [points, live, drawPath]);
@@ -210,7 +213,8 @@ export function LeafletMap({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   container: {
     borderRadius: radius.lg,
     overflow: 'hidden',

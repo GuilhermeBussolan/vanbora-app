@@ -2,10 +2,23 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppHeader, Button, Input, Screen, StepProgress } from '@/components';
-import { colors, spacing, typography } from '@/theme';
+import {
+  formatCnh,
+  formatCpf,
+  formatPhone,
+  formatPlate,
+  isValidCnh,
+  isValidCpf,
+  isValidEmail,
+  isValidPhone,
+  isValidPlate,
+} from '@/lib/validation';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Cadastro do transportador — Etapa 1: dados pessoais, veículo e senha. */
 export default function RegisterTransporterScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -13,7 +26,6 @@ export default function RegisterTransporterScreen() {
     email: '',
     cnh: '',
     plate: '',
-    capacity: '',
     password: '',
     confirmPassword: '',
   });
@@ -23,8 +35,28 @@ export default function RegisterTransporterScreen() {
     setForm((prev) => ({ ...prev, [key]: value }));
 
   function handleNext() {
-    if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
-      setError('Preencha nome, e-mail e telefone.');
+    if (!form.name.trim()) {
+      setError('Informe seu nome completo.');
+      return;
+    }
+    if (!isValidPhone(form.phone)) {
+      setError('Telefone inválido. Informe DDD + número, ex.: (11) 9 1234-5678.');
+      return;
+    }
+    if (!isValidCpf(form.document)) {
+      setError('CPF inválido. Confira os números digitados.');
+      return;
+    }
+    if (!isValidEmail(form.email)) {
+      setError('E-mail inválido. Ex.: nome@exemplo.com.');
+      return;
+    }
+    if (!isValidCnh(form.cnh)) {
+      setError('CNH inválida. Informe os 11 dígitos do número de registro.');
+      return;
+    }
+    if (!isValidPlate(form.plate)) {
+      setError('Placa inválida. Use até 7 caracteres (letras e números).');
       return;
     }
     if (form.password.length < 6) {
@@ -45,7 +77,6 @@ export default function RegisterTransporterScreen() {
         document: form.document.trim(),
         cnh: form.cnh.trim(),
         plate: form.plate.trim(),
-        capacity: form.capacity.trim(),
         password: form.password,
       },
     });
@@ -60,16 +91,18 @@ export default function RegisterTransporterScreen() {
       <View style={styles.form}>
         <Input placeholder="Nome Completo" value={form.name} onChangeText={update('name')} />
         <Input
-          placeholder="Telefone (Celular)"
+          placeholder="Telefone — (11) 9 1234-5678"
           keyboardType="phone-pad"
           value={form.phone}
-          onChangeText={update('phone')}
+          onChangeText={(v) => update('phone')(formatPhone(v))}
+          maxLength={16}
         />
         <Input
-          placeholder="CPF / CNPJ"
+          placeholder="CPF — 123.456.789-10"
           keyboardType="numeric"
           value={form.document}
-          onChangeText={update('document')}
+          onChangeText={(v) => update('document')(formatCpf(v))}
+          maxLength={14}
         />
         <Input
           placeholder="E-mail"
@@ -78,23 +111,20 @@ export default function RegisterTransporterScreen() {
           value={form.email}
           onChangeText={update('email')}
         />
-        <Input placeholder="CNH" keyboardType="numeric" value={form.cnh} onChangeText={update('cnh')} />
-        <View style={styles.row}>
-          <Input
-            placeholder="Placa do Veículo"
-            autoCapitalize="characters"
-            value={form.plate}
-            onChangeText={update('plate')}
-            containerStyle={styles.rowItem}
-          />
-          <Input
-            placeholder="Lotação Máx."
-            keyboardType="numeric"
-            value={form.capacity}
-            onChangeText={update('capacity')}
-            containerStyle={styles.rowItem}
-          />
-        </View>
+        <Input
+          placeholder="CNH — 11 dígitos"
+          keyboardType="numeric"
+          value={form.cnh}
+          onChangeText={(v) => update('cnh')(formatCnh(v))}
+          maxLength={11}
+        />
+        <Input
+          placeholder="Placa do Veículo"
+          autoCapitalize="characters"
+          value={form.plate}
+          onChangeText={(v) => update('plate')(formatPlate(v))}
+          maxLength={7}
+        />
         <Input placeholder="Senha" password value={form.password} onChangeText={update('password')} />
         <Input
           placeholder="Confirmar Senha"
@@ -109,19 +139,13 @@ export default function RegisterTransporterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   section: {
     marginBottom: spacing.lg,
   },
   form: {
     gap: spacing.md,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  rowItem: {
-    flex: 1,
   },
   error: {
     fontSize: 13,

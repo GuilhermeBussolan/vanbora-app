@@ -4,12 +4,12 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
-import { listContracts } from '@/api/contracts';
 import { getGuardianDashboard, GuardianDashboardDto } from '@/api/guardian';
 import { listGuardianNotices, removeReaction, setReaction } from '@/api/notices';
-import { ContractDto, GuardianNoticeDto, NOTICE_EMOJIS } from '@/types';
+import { GuardianNoticeDto, NOTICE_EMOJIS } from '@/types';
 import { formatCurrency } from '@/data/mockData';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -18,23 +18,24 @@ function greeting(): string {
   return 'Boa noite';
 }
 
-/** Dashboard do Responsável — alterna entre estado vazio e populado (dados reais). */
+/** Dashboard do Responsável — por dependente: populado, em contratação ou vazio. */
 export default function GuardianHomeScreen() {
-  const { user, token } = useAppState();
+  const { colors, typography, styles } = useThemedScreen(createStyles);
+  const { user, token, dependents, selectedDependentId, selectDependent } = useAppState();
   const [dashboard, setDashboard] = useState<GuardianDashboardDto | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       if (token) {
-        getGuardianDashboard(token)
+        getGuardianDashboard(token, selectedDependentId)
           .then((d) => active && setDashboard(d))
           .catch(() => active && setDashboard(null));
       }
       return () => {
         active = false;
       };
-    }, [token]),
+    }, [token, selectedDependentId]),
   );
 
   return (
@@ -43,60 +44,68 @@ export default function GuardianHomeScreen() {
         {greeting()}, {user?.name ?? ''}
       </Text>
 
-      <PendingContractsBanner />
+      {dependents.length > 1 ? (
+        <View style={styles.switcher}>
+          {dependents.map((d) => {
+            const sel = d.id === selectedDependentId;
+            return (
+              <Pressable
+                key={d.id}
+                onPress={() => selectDependent(d.id)}
+                style={[styles.depChip, sel && styles.depChipSel]}
+              >
+                <Ionicons
+                  name="person-circle"
+                  size={18}
+                  color={sel ? colors.textOnBrand : colors.textSecondary}
+                />
+                <Text style={[styles.depChipText, sel && styles.depChipTextSel]}>
+                  {firstName(d.name)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
 
       {dashboard?.hasTransporter ? (
         <PopulatedDashboard dashboard={dashboard} />
+      ) : dashboard?.pendingContractId ? (
+        <PendingContractCard dashboard={dashboard} />
       ) : (
-        <EmptyDashboard />
+        <EmptyDashboard dependentName={dashboard?.studentName ?? null} />
       )}
     </Screen>
   );
 }
 
-/** Banner: avisa o responsável que há contrato(s) liberado(s) para assinatura. */
-function PendingContractsBanner() {
-  const { token } = useAppState();
-  const [pending, setPending] = useState<ContractDto[]>([]);
+function firstName(name: string): string {
+  return name.split(' ')[0];
+}
 
-  useFocusEffect(
-    React.useCallback(() => {
-      let active = true;
-      if (token) {
-        listContracts(token, 'PENDING_SIGNATURE')
-          .then((list) => active && setPending(list))
-          .catch(() => active && setPending([]));
-      }
-      return () => {
-        active = false;
-      };
-    }, [token]),
-  );
-
-  if (pending.length === 0) return null;
-
+/** Card: contrato liberado para o dependente selecionado, aguardando assinatura. */
+function PendingContractCard({ dashboard }: { dashboard: GuardianDashboardDto }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
-    <View style={styles.banners}>
-      {pending.map((c) => (
-        <Pressable key={c.id} onPress={() => router.push(`/contract/${c.id}`)}>
-          <Card style={styles.contractBanner}>
-            <Ionicons name="document-text-outline" size={22} color={colors.brandDark} />
-            <View style={styles.bannerBody}>
-              <Text style={styles.bannerTitle}>Contrato para assinar</Text>
-              <Text style={styles.bannerText}>
-                {c.transporterName} liberou o contrato de {c.studentName}. Toque para revisar e assinar.
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </Card>
-        </Pressable>
-      ))}
-    </View>
+    <Pressable onPress={() => router.push(`/contract/${dashboard.pendingContractId}`)}>
+      <Card style={styles.contractBanner}>
+        <Ionicons name="document-text-outline" size={22} color={colors.brandDark} />
+        <View style={styles.bannerBody}>
+          <Text style={styles.bannerTitle}>Contrato para assinar</Text>
+          <Text style={styles.bannerText}>
+            {dashboard.studentName ? `${dashboard.studentName} está em fase de contratação. ` : ''}
+            Toque para revisar e assinar.
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      </Card>
+    </Pressable>
   );
 }
 
 /** Card do aviso mais recente, tocável (tela cheia) e com reação inline. */
 function LatestNoticeCard() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [notice, setNotice] = useState<GuardianNoticeDto | null>(null);
 
@@ -169,43 +178,122 @@ function LatestNoticeCard() {
 }
 
 function PopulatedDashboard({ dashboard }: { dashboard: GuardianDashboardDto }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const next = dashboard.nextPayment;
+  const firstName = dashboard.studentName?.split(' ')[0] ?? 'Seu filho';
+  const todayISO = localTodayISO();
+  const going = dashboard.goingToday;
+
   return (
     <View style={styles.body}>
+      {dashboard.reviewDue && dashboard.transporterId ? (
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: '/review-transporter',
+              params: {
+                transporterId: String(dashboard.transporterId),
+                name: dashboard.transporterName ?? '',
+                skippable: '1',
+              },
+            })
+          }
+        >
+          <Card style={styles.reviewBanner}>
+            <Ionicons name="star" size={22} color={colors.brandDark} />
+            <View style={styles.flex}>
+              <Text style={styles.bannerTitle}>Como está a experiência?</Text>
+              <Text style={styles.bannerText}>
+                Avalie {firstNameOfTransporter(dashboard.transporterName)} — leva 10 segundos.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Card>
+        </Pressable>
+      ) : null}
+
       <LatestNoticeCard />
 
+      {/* Hoje — vai ou não vai + atalho para avisar falta */}
       <Card>
-        <View style={styles.attendanceHeader}>
-          <Text style={typography.sectionTitle}>Presença da Semana</Text>
-          {dashboard.studentName ? (
-            <Text style={styles.studentName}>{dashboard.studentName}</Text>
-          ) : null}
+        <View style={styles.todayRow}>
+          <View
+            style={[
+              styles.todayBadge,
+              going === false ? styles.todayBadgeAbsent : styles.todayBadgePresent,
+            ]}
+          >
+            <Ionicons
+              name={going === false ? 'close' : going == null ? 'cafe-outline' : 'bus'}
+              size={20}
+              color={going === false ? colors.danger : colors.textOnBrand}
+            />
+          </View>
+          <View style={styles.flex}>
+            <Text style={styles.todayLabel}>Hoje</Text>
+            <Text style={styles.todayStatus}>
+              {going == null
+                ? 'Sem transporte hoje'
+                : going
+                  ? `${firstName} vai à escola`
+                  : `${firstName} não vai hoje`}
+            </Text>
+          </View>
         </View>
-        <View style={styles.daysRow}>
-          {dashboard.weekAttendance.map((d) => {
-            const present = d.present !== false;
-            return (
-              <View key={d.day} style={styles.dayItem}>
-                <Text style={styles.dayLabel}>{d.day}</Text>
-                <View style={[styles.dayCircle, present ? styles.dayPresent : styles.dayAbsent]}>
-                  <Ionicons
-                    name={present ? 'checkmark' : 'close'}
-                    size={16}
-                    color={present ? colors.textOnBrand : colors.danger}
-                  />
-                </View>
-              </View>
-            );
-          })}
-        </View>
+        <Button
+          label="Avisar falta"
+          variant="outline"
+          icon="calendar-outline"
+          onPress={() => router.push('/report-absence')}
+          style={styles.avisarBtn}
+        />
       </Card>
 
+      {/* Presença da semana (real) — toca para ver o histórico por semana */}
+      <Pressable onPress={() => router.push('/attendance-history')}>
+        <Card>
+          <View style={styles.attendanceHeader}>
+            <Text style={typography.sectionTitle}>Presença da Semana</Text>
+            <View style={styles.seeHistory}>
+              <Text style={styles.seeHistoryText}>Histórico</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.brandDark} />
+            </View>
+          </View>
+          <View style={styles.daysRow}>
+            {dashboard.weekAttendance.map((d) => {
+              const isToday = d.date === todayISO;
+              return (
+                <View key={d.day} style={styles.dayItem}>
+                  <Text style={[styles.dayLabel, isToday && styles.dayLabelToday]}>{d.day}</Text>
+                  <View
+                    style={[
+                      styles.dayCircle,
+                      d.present ? styles.dayPresent : styles.dayAbsent,
+                      isToday && styles.dayToday,
+                    ]}
+                  >
+                    <Ionicons
+                      name={d.present ? 'checkmark' : 'close'}
+                      size={16}
+                      color={d.present ? colors.textOnBrand : colors.danger}
+                    />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </Card>
+      </Pressable>
+
+      {/* Próximo pagamento — sempre mostra a data; "Ver todos" abre o cronograma */}
       <Card>
         <View style={styles.paymentRow}>
           <View style={styles.paymentInfo}>
             <View style={styles.paymentLabelRow}>
               <Ionicons name="cash-outline" size={16} color={colors.textSecondary} />
-              <Text style={styles.paymentLabel}>Próximo Pagamento</Text>
+              <Text style={styles.paymentLabel}>
+                {next?.payable ? 'Próximo Pagamento' : 'Próxima Mensalidade'}
+              </Text>
             </View>
             {next ? (
               <>
@@ -214,6 +302,11 @@ function PopulatedDashboard({ dashboard }: { dashboard: GuardianDashboardDto }) 
                   {formatRefMonth(next.referenceMonth)}
                   {next.dueDate ? ` • vence ${formatDate(next.dueDate)}` : ''}
                 </Text>
+                {next.status === 'OVERDUE' ? (
+                  <Text style={styles.overdueTag}>Em atraso</Text>
+                ) : !next.payable ? (
+                  <Text style={styles.okTag}>Tudo em dia 🎉</Text>
+                ) : null}
               </>
             ) : (
               <>
@@ -222,24 +315,44 @@ function PopulatedDashboard({ dashboard }: { dashboard: GuardianDashboardDto }) 
               </>
             )}
           </View>
-          {next ? (
-            <Button label="Pagar" onPress={() => router.push('/payments')} style={styles.payBtn} />
-          ) : null}
+          <Button
+            label={next?.payable ? 'Pagar' : 'Ver todos'}
+            variant={next?.payable ? 'primary' : 'outline'}
+            onPress={() => router.push('/payments')}
+            style={styles.payBtn}
+          />
         </View>
       </Card>
     </View>
   );
 }
 
-function EmptyDashboard() {
+/** Primeiro nome do transportador (ou um rótulo genérico). */
+function firstNameOfTransporter(name: string | null): string {
+  return name?.split(' ')[0] ?? 'o transportador';
+}
+
+/** Data de hoje no fuso local em ISO (YYYY-MM-DD), sem o deslocamento UTC. */
+function localTodayISO(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function EmptyDashboard({ dependentName }: { dependentName: string | null }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <View style={styles.empty}>
       <View style={styles.emptyIcon}>
         <Ionicons name="bus-outline" size={42} color={colors.textMuted} />
       </View>
-      <Text style={styles.emptyTitle}>Você ainda não tem um transportador contratado.</Text>
+      <Text style={styles.emptyTitle}>
+        {dependentName
+          ? `${firstName(dependentName)} ainda não tem um transportador.`
+          : 'Você ainda não tem um transportador contratado.'}
+      </Text>
       <Text style={styles.emptyText}>
-        Encontre o transporte ideal para o seu filho e acompanhe tudo pelo aplicativo.
+        Encontre o transporte ideal e acompanhe tudo pelo aplicativo.
       </Text>
       <Button
         label="Buscar Transportador"
@@ -268,15 +381,52 @@ function formatDate(iso: string): string {
   return d && m ? `${d}/${m}` : iso;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   greeting: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  switcher: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  depChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  depChipSel: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  depChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  depChipTextSel: {
+    color: colors.textOnBrand,
   },
   banners: {
     gap: spacing.md,
     marginBottom: spacing.lg,
   },
   contractBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brand,
+  },
+  reviewBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
@@ -356,11 +506,74 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: colors.textSecondary,
   },
+  todayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  todayBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  todayBadgePresent: {
+    backgroundColor: colors.brand,
+  },
+  todayBadgeAbsent: {
+    backgroundColor: colors.dangerBg,
+  },
+  todayLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  todayStatus: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginTop: 2,
+  },
+  avisarBtn: {
+    marginTop: spacing.lg,
+    height: 44,
+  },
+  okTag: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.success,
+    marginTop: 4,
+  },
+  overdueTag: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.danger,
+    marginTop: 4,
+  },
+  dayToday: {
+    borderWidth: 2,
+    borderColor: colors.textPrimary,
+  },
+  dayLabelToday: {
+    color: colors.textPrimary,
+    fontWeight: '800',
+  },
   attendanceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing.lg,
+  },
+  seeHistory: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  seeHistoryText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.brandDark,
   },
   studentName: {
     fontSize: 13,

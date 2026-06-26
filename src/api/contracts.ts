@@ -20,3 +20,17 @@ export function signContract(token: string, id: number, paymentMethodId: number)
     token,
   });
 }
+
+/** [Responsável] Cancela o contrato — exige avaliação obrigatória do transportador. */
+export function cancelContract(
+  token: string,
+  id: number,
+  rating: number,
+  comment?: string,
+): Promise<ContractDto> {
+  return apiFetch<ContractDto>(`/api/guardians/me/contracts/${id}/cancel`, {
+    method: 'POST',
+    body: { rating, comment: comment?.trim() || null },
+    token,
+  });
+}

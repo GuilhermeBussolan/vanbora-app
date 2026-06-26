@@ -6,7 +6,8 @@ import { MapPoint } from '@/components/ui/LeafletMap';
 import { useAppState } from '@/context/AppState';
 import { getGuardianTracking } from '@/api/tracking';
 import { ApiRouteStop, GuardianTracking } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 const POLL_MS = 5000;
 
@@ -35,7 +36,8 @@ function timeAgo(iso: string | null): string {
 
 /** Rastreamento em tempo real: posição do transportador no mapa (polling). */
 export default function TrackingScreen() {
-  const { token } = useAppState();
+  const { colors, typography, styles } = useThemedScreen(createStyles);
+  const { token, selectedDependentId } = useAppState();
   const [tracking, setTracking] = useState<GuardianTracking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export default function TrackingScreen() {
 
     async function poll() {
       try {
-        const data = await getGuardianTracking(token!);
+        const data = await getGuardianTracking(token!, selectedDependentId);
         if (!cancelled) {
           setTracking(data);
           setError(null);
@@ -68,7 +70,7 @@ export default function TrackingScreen() {
       clearInterval(interval);
       clearInterval(ticker);
     };
-  }, [token]);
+  }, [token, selectedDependentId]);
 
   // Apenas a parada do próprio dependente + a escola (privacidade).
   const ownStops = [tracking?.myStop, tracking?.schoolStop].filter(
@@ -143,7 +145,8 @@ export default function TrackingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: {
     marginBottom: spacing.lg,
   },

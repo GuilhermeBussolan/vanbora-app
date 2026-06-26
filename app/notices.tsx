@@ -6,7 +6,8 @@ import { AppHeader, Card, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { deleteNotice, listMyNotices } from '@/api/notices';
 import { TransporterNoticeDto } from '@/types';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', {
@@ -23,6 +24,7 @@ function reactionSummary(reactions: TransporterNoticeDto['reactions']): string {
 
 /** Gerenciamento de avisos: criar (com agendamento), listar e excluir. */
 export default function NoticesScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [notices, setNotices] = useState<TransporterNoticeDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,7 +143,8 @@ export default function NoticesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   newBtn: {
     flexDirection: 'row',
     alignItems: 'center',

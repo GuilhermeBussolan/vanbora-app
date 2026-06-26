@@ -7,12 +7,14 @@ import { useAppState } from '@/context/AppState';
 import { createNotice } from '@/api/notices';
 import { consumeAudienceResult, openAudience } from '@/lib/audienceSelection';
 import { NoticePriority } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 type Mode = 'now' | 'schedule';
 
 /** Criação de aviso: título, mensagem, prioridade, comentários, destinatários, agendamento. */
 export default function NewNoticeScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
@@ -189,6 +191,7 @@ function Chip({
   onPress: () => void;
   danger?: boolean;
 }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const activeBg = danger ? colors.danger : colors.brand;
   return (
     <Pressable
@@ -205,7 +208,8 @@ function Chip({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginTop: spacing.md, marginBottom: spacing.lg },
   titleInput: {
     height: 48,

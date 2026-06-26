@@ -2,7 +2,8 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 interface AppHeaderProps {
   title?: string;
@@ -15,6 +16,7 @@ interface AppHeaderProps {
 
 /** Cabeçalho com botão de voltar e título centralizado/à esquerda. */
 export function AppHeader({ title, showBack = false, onBack, right }: AppHeaderProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const handleBack = onBack ?? (() => router.back());
   return (
     <View style={styles.row}>
@@ -31,7 +33,8 @@ export function AppHeader({ title, showBack = false, onBack, right }: AppHeaderP
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

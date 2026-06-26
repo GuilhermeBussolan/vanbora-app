@@ -4,10 +4,12 @@ import { router } from 'expo-router';
 import { AppHeader, Button, Input, Logo, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { ApiError } from '@/api/client';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Login real contra a API: roteia para Responsável ou Transportador conforme o papel. */
 export default function LoginScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { login, setHasTransporter } = useAppState();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -86,7 +88,8 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   content: {
     flexGrow: 1,
   },

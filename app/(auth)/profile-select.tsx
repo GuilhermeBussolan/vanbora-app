@@ -4,7 +4,8 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader, Button, Screen } from '@/components';
 import { UserRole } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 interface Option {
   role: UserRole;
@@ -30,6 +31,7 @@ const OPTIONS: Option[] = [
 
 /** Seleção do tipo de usuário antes do cadastro. */
 export default function ProfileSelectScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const [selected, setSelected] = useState<UserRole>('guardian');
 
   function handleContinue() {
@@ -82,7 +84,8 @@ export default function ProfileSelectScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   heading: {
     textAlign: 'center',
     marginBottom: spacing.xxl,

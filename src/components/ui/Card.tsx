@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, ViewProps, ViewStyle } from 'react-native';
-import { cardShadow, colors, radius, spacing } from '@/theme';
+import { cardShadow, radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 interface CardProps extends ViewProps {
   /** Destaque com borda amarela (ex.: pagamento pendente). */
@@ -17,6 +18,7 @@ export function Card({
   children,
   ...rest
 }: CardProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <View
       style={[
@@ -32,7 +34,8 @@ export function Card({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

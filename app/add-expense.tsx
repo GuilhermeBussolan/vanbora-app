@@ -4,13 +4,15 @@ import { router } from 'expo-router';
 import { AppHeader, Button, Input, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { addExpense } from '@/api/finance';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Categorias comuns para preenchimento rápido. */
 const QUICK_CATEGORIES = ['Manutenção', 'Pedágio', 'Seguro', 'Lavagem', 'Documentação', 'Outros'];
 
 /** Cadastro de um gasto livre do transportador. */
 export default function AddExpenseScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
@@ -106,7 +108,8 @@ export function parseAmount(text: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginTop: spacing.md },
   subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.sm },

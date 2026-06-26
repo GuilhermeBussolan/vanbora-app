@@ -13,3 +13,5 @@ export { StepProgress } from './ui/StepProgress';
 
 export { Screen } from './layout/Screen';
 export { AppHeader } from './layout/AppHeader';
+export { SchoolPicker } from './feature/SchoolPicker';
+export { SchoolRegisterModal } from './feature/SchoolRegisterModal';

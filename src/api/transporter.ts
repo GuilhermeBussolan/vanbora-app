@@ -25,7 +25,7 @@ export function getPublicProfile(token: string, id: number): Promise<Transporter
 
 export function updateVehicle(
   token: string,
-  body: { cnh: string | null; plate: string | null; capacity: number | null },
+  body: { cnh: string | null; plate: string | null },
 ): Promise<TransporterProfileDto> {
   return apiFetch<TransporterProfileDto>('/api/transporters/me', { method: 'PUT', body, token });
 }

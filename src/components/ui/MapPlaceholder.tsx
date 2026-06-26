@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 interface MapPlaceholderProps {
   label?: string;
@@ -18,6 +19,7 @@ export function MapPlaceholder({
   height = 220,
   style,
 }: MapPlaceholderProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <View style={[styles.map, { height }, style]}>
       <Ionicons name="map-outline" size={34} color={colors.textMuted} />
@@ -26,7 +28,8 @@ export function MapPlaceholder({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   map: {
     backgroundColor: colors.mapBg,
     borderRadius: radius.lg,

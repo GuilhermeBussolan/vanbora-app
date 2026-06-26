@@ -8,9 +8,11 @@ import React, {
   useState,
 } from 'react';
 import { AuthResponse, login as apiLogin } from '@/api/auth';
-import { AuthUser, UserRole } from '@/types';
+import { listDependents } from '@/api/dependents';
+import { AuthUser, DependentDto, UserRole } from '@/types';
 
 const STORAGE_KEY = 'vanbora.session';
+const DEPENDENT_KEY = 'vanbora.selectedDependent';
 
 interface StoredSession {
   token: string;
@@ -25,6 +27,14 @@ interface AppState {
   token: string | null;
   /** Usuário autenticado (null se deslogado). */
   user: AuthUser | null;
+  /** Dependentes do responsável (vazio para transportador). */
+  dependents: DependentDto[];
+  /** Dependente atualmente selecionado (visão do app por filho). */
+  selectedDependentId: number | null;
+  /** Troca o dependente em foco (persistido localmente). */
+  selectDependent: (id: number) => void;
+  /** Recarrega a lista de dependentes (ex.: após adicionar um). */
+  refreshDependents: () => Promise<void>;
   setRole: (role: UserRole | null) => void;
   setHasTransporter: (value: boolean) => void;
   /** Autentica na API; lança em caso de erro. Devolve o papel resolvido. */
@@ -50,6 +60,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [hasTransporter, setHasTransporter] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [dependents, setDependents] = useState<DependentDto[]>([]);
+  const [selectedDependentId, setSelectedDependentId] = useState<number | null>(null);
 
   // Restaura sessão persistida ao iniciar.
   useEffect(() => {
@@ -69,6 +81,39 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const handleSetHasTransporter = useCallback((value: boolean) => {
     setHasTransporter(value);
   }, []);
+
+  const selectDependent = useCallback((id: number) => {
+    setSelectedDependentId(id);
+    AsyncStorage.setItem(DEPENDENT_KEY, String(id)).catch(() => undefined);
+  }, []);
+
+  const refreshDependents = useCallback(async () => {
+    if (!token) return;
+    try {
+      const list = await listDependents(token);
+      setDependents(list);
+      const stored = await AsyncStorage.getItem(DEPENDENT_KEY);
+      const storedId = stored ? Number(stored) : null;
+      const valid = storedId != null && list.some((d) => d.id === storedId);
+      const chosen = valid ? storedId : (list[0]?.id ?? null);
+      setSelectedDependentId(chosen);
+      if (chosen != null) {
+        AsyncStorage.setItem(DEPENDENT_KEY, String(chosen)).catch(() => undefined);
+      }
+    } catch {
+      /* mantém o estado atual em caso de falha */
+    }
+  }, [token]);
+
+  // Carrega os dependentes do responsável quando há sessão.
+  useEffect(() => {
+    if (token && role === 'guardian') {
+      refreshDependents();
+    } else {
+      setDependents([]);
+      setSelectedDependentId(null);
+    }
+  }, [token, role, refreshDependents]);
 
   const applySession = useCallback(async (response: AuthResponse): Promise<UserRole> => {
     const appRole = toAppRole(response.user.role);
@@ -96,6 +141,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setRole(null);
     setHasTransporter(false);
+    setDependents([]);
+    setSelectedDependentId(null);
     AsyncStorage.removeItem(STORAGE_KEY).catch(() => undefined);
   }, []);
 
@@ -105,13 +152,30 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       hasTransporter,
       token,
       user,
+      dependents,
+      selectedDependentId,
+      selectDependent,
+      refreshDependents,
       setRole,
       setHasTransporter: handleSetHasTransporter,
       login,
       applySession,
       logout,
     }),
-    [role, hasTransporter, token, user, handleSetHasTransporter, login, applySession, logout],
+    [
+      role,
+      hasTransporter,
+      token,
+      user,
+      dependents,
+      selectedDependentId,
+      selectDependent,
+      refreshDependents,
+      handleSetHasTransporter,
+      login,
+      applySession,
+      logout,
+    ],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

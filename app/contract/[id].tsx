@@ -15,12 +15,14 @@ import {
 } from '@/lib/fakeCardToken';
 import { formatCurrency } from '@/data/mockData';
 import { ContractDto, PaymentMethodDto, PaymentMethodType } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 const emptyCard: CardInput = { number: '', holder: '', expiry: '', cvv: '' };
 
 /** Tela de contrato: revisar termos, cadastrar pagamento e assinar. */
 export default function ContractScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const contractId = Number(id);
   const { token, setHasTransporter } = useAppState();
@@ -88,11 +90,28 @@ export default function ContractScreen() {
     setSigning(true);
     setError(null);
     try {
-      await signContract(token, contractId, selectedMethod);
+      const signed = await signContract(token, contractId, selectedMethod);
       setHasTransporter(true);
-      Alert.alert('Contrato assinado!', 'A matrícula foi ativada e a primeira mensalidade foi processada.', [
-        { text: 'OK', onPress: () => router.replace('/(guardian)/home') },
-      ]);
+      Alert.alert(
+        'Contrato assinado!',
+        'A matrícula foi ativada e a primeira mensalidade foi processada. Avalie o transportador a qualquer momento — pediremos sua opinião a cada 3 meses.',
+        [
+          { text: 'Agora não', style: 'cancel', onPress: () => router.replace('/(guardian)/home') },
+          {
+            text: 'Avaliar',
+            onPress: () =>
+              router.replace({
+                pathname: '/review-transporter',
+                params: {
+                  transporterId: String(signed.transporterId),
+                  name: signed.transporterName,
+                  skippable: '1',
+                  returnHome: '1',
+                },
+              }),
+          },
+        ],
+      );
     } catch (err: any) {
       setError(err?.message ?? 'Falha ao assinar o contrato.');
     } finally {
@@ -254,6 +273,7 @@ export default function ContractScreen() {
 }
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -262,7 +282,8 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginTop: spacing.md, marginBottom: spacing.lg },
   termsCard: { gap: spacing.sm },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

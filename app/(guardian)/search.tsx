@@ -8,12 +8,14 @@ import { searchTransporters } from '@/api/transporter';
 import { mediaUrl } from '@/api/client';
 import { formatCurrency } from '@/data/mockData';
 import { TransporterSummaryDto } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 type SortKey = 'price' | 'rating';
 
 /** Busca de transportadores por escola e bairro. */
 export default function SearchScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [school, setSchool] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
@@ -112,6 +114,7 @@ function SortPill({
   active: boolean;
   onPress: () => void;
 }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <Pressable onPress={onPress} style={[styles.sortPill, active && styles.sortPillActive]}>
       <Ionicons name="swap-vertical" size={13} color={active ? colors.textOnBrand : colors.textSecondary} />
@@ -121,6 +124,7 @@ function SortPill({
 }
 
 function ResultCard({ transporter }: { transporter: TransporterSummaryDto }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <Card>
       <View style={styles.cardTop}>
@@ -133,7 +137,7 @@ function ResultCard({ transporter }: { transporter: TransporterSummaryDto }) {
 
       <Text style={styles.meta}>
         {(transporter.schools[0] ?? 'Escolas a definir')} •{' '}
-        {(transporter.neighborhoods[0] ?? 'Bairros a definir')} • {transporter.availableSeats} vagas
+        {(transporter.neighborhoods[0] ?? 'Bairros a definir')}
       </Text>
 
       <View style={styles.cardBottom}>
@@ -155,7 +159,8 @@ function ResultCard({ transporter }: { transporter: TransporterSummaryDto }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginBottom: spacing.lg },
   form: { gap: spacing.md, marginBottom: spacing.xl },
   resultsHeader: {

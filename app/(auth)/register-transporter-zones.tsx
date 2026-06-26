@@ -6,10 +6,12 @@ import { AppHeader, Button, Input, Screen, StepProgress } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { registerTransporter } from '@/api/auth';
 import { parseAmount } from '../add-expense';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Cadastro do transportador — Etapa 2: área de atendimento e valor de tabela. */
 export default function RegisterTransporterZonesScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { applySession } = useAppState();
   const step1 = useLocalSearchParams<{
     name: string;
@@ -18,7 +20,6 @@ export default function RegisterTransporterZonesScreen() {
     document?: string;
     cnh?: string;
     plate?: string;
-    capacity?: string;
     password: string;
   }>();
 
@@ -41,7 +42,6 @@ export default function RegisterTransporterZonesScreen() {
     setLoading(true);
     setError(null);
     try {
-      const capacity = step1.capacity ? Number(step1.capacity) : null;
       const session = await registerTransporter({
         name: step1.name,
         email: step1.email,
@@ -50,7 +50,6 @@ export default function RegisterTransporterZonesScreen() {
         document: step1.document || undefined,
         cnh: step1.cnh || undefined,
         plate: step1.plate || undefined,
-        capacity: capacity != null && !Number.isNaN(capacity) ? capacity : null,
         schools,
         neighborhoods,
         baseMonthlyFee: feeValue,
@@ -116,6 +115,7 @@ function EditableList({
   items: string[];
   onChange: (next: string[]) => void;
 }) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const [draft, setDraft] = useState('');
 
   function add() {
@@ -156,7 +156,8 @@ function EditableList({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   section: { marginBottom: spacing.xs },
   subtitle: { fontSize: 13, color: colors.textSecondary, marginBottom: spacing.lg, lineHeight: 19 },
   listBlock: { marginBottom: spacing.lg },

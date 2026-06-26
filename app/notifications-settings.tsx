@@ -7,7 +7,8 @@ import {
   NotificationPrefs,
   saveNotificationPrefs,
 } from '@/lib/notificationPrefs';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 const ITEMS: { key: keyof NotificationPrefs; label: string; description: string }[] = [
   { key: 'tripUpdates', label: 'Trajeto em tempo real', description: 'Avisos de embarque, chegada e desembarque.' },
@@ -17,6 +18,7 @@ const ITEMS: { key: keyof NotificationPrefs; label: string; description: string 
 
 /** Preferências de notificação (salvas localmente no aparelho). */
 export default function NotificationsSettingsScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const [prefs, setPrefs] = useState<NotificationPrefs>(defaultPrefs);
 
   useEffect(() => {
@@ -59,7 +61,8 @@ export default function NotificationsSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginTop: spacing.md, marginBottom: spacing.lg },
   row: {
     flexDirection: 'row',

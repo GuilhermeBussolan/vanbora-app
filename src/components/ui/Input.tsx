@@ -8,7 +8,8 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 interface InputProps extends TextInputProps {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -25,6 +26,7 @@ export function Input({
   style,
   ...rest
 }: InputProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const [hidden, setHidden] = useState(password);
 
   return (
@@ -51,7 +53,8 @@ export function Input({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -5,10 +5,13 @@ import { AppHeader, Button, Input, Screen } from '@/components';
 import { AddressFields, AddressValue, EMPTY_ADDRESS } from '@/components/feature/AddressFields';
 import { useAppState } from '@/context/AppState';
 import { registerGuardian } from '@/api/auth';
-import { colors, spacing, typography } from '@/theme';
+import { formatCpf, formatPhone, isValidCpf, isValidEmail, isValidPhone } from '@/lib/validation';
+import { spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Cadastro do responsável. Cria a conta na API (com endereços) e entra logado. */
 export default function RegisterGuardianScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { applySession } = useAppState();
   const [form, setForm] = useState({
     name: '',
@@ -28,8 +31,20 @@ export default function RegisterGuardianScreen() {
     setForm((prev) => ({ ...prev, [key]: value }));
 
   async function handleRegister() {
-    if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
-      setError('Preencha nome, e-mail e telefone.');
+    if (!form.name.trim()) {
+      setError('Informe seu nome completo.');
+      return;
+    }
+    if (!isValidPhone(form.phone)) {
+      setError('Telefone inválido. Informe DDD + número, ex.: (11) 9 1234-5678.');
+      return;
+    }
+    if (!isValidCpf(form.cpf)) {
+      setError('CPF inválido. Confira os números digitados.');
+      return;
+    }
+    if (!isValidEmail(form.email)) {
+      setError('E-mail inválido. Ex.: nome@exemplo.com.');
       return;
     }
     if (!pickup.cep.trim() || !pickup.street.trim() || !pickup.number.trim()) {
@@ -56,7 +71,7 @@ export default function RegisterGuardianScreen() {
         email: form.email.trim(),
         password: form.password,
         phone: form.phone.trim(),
-        cpf: form.cpf.trim() || undefined,
+        cpf: form.cpf.trim(),
         pickup,
         deliverySameAsPickup: deliverySame,
         delivery: deliverySame ? null : delivery,
@@ -78,16 +93,18 @@ export default function RegisterGuardianScreen() {
       <View style={styles.form}>
         <Input placeholder="Nome Completo" value={form.name} onChangeText={update('name')} />
         <Input
-          placeholder="Telefone (Celular)"
+          placeholder="Telefone — (11) 9 1234-5678"
           keyboardType="phone-pad"
           value={form.phone}
-          onChangeText={update('phone')}
+          onChangeText={(v) => update('phone')(formatPhone(v))}
+          maxLength={16}
         />
         <Input
-          placeholder="CPF"
+          placeholder="CPF — 123.456.789-10"
           keyboardType="numeric"
           value={form.cpf}
-          onChangeText={update('cpf')}
+          onChangeText={(v) => update('cpf')(formatCpf(v))}
+          maxLength={14}
         />
         <Input
           placeholder="E-mail"
@@ -136,7 +153,8 @@ export default function RegisterGuardianScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   section: { marginTop: spacing.xl, marginBottom: spacing.xs },
   sectionHint: { fontSize: 12, color: colors.textSecondary, marginBottom: spacing.md },
   form: { gap: spacing.md },

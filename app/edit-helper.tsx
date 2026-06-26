@@ -8,10 +8,12 @@ import { deleteHelper, updateHelper, uploadHelperPhoto } from '@/api/helpers';
 import { mediaUrl } from '@/api/client';
 import { pickImage } from '@/lib/imagePicker';
 import { HELPER_ROLES } from '@/lib/helperRoles';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 /** Edição de um ajudante: nome, função, foto, situação e exclusão. */
 export default function EditHelperScreen() {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const params = useLocalSearchParams<{
     id: string;
@@ -143,7 +145,8 @@ export default function EditHelperScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginTop: spacing.md, marginBottom: spacing.lg },
   photoSection: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
   photoWrap: { position: 'relative' },

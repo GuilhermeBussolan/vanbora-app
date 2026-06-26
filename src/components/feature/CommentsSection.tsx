@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NoticeCommentDto } from '@/types';
-import { colors, radius, spacing, typography } from '@/theme';
+import { radius, spacing, useThemedScreen } from '@/theme';
+import type { ThemeColors, Typography } from '@/theme';
 
 interface CommentsSectionProps {
   comments: NoticeCommentDto[];
@@ -34,6 +35,7 @@ export function CommentsSection({
   onPost,
   onDelete,
 }: CommentsSectionProps) {
+  const { colors, typography, styles } = useThemedScreen(createStyles);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -100,7 +102,8 @@ export function CommentsSection({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: Typography) =>
+  StyleSheet.create({
   title: { marginBottom: spacing.md },
   empty: { fontSize: 13, color: colors.textMuted },
   list: { gap: spacing.md },

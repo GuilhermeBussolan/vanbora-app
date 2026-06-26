@@ -36,9 +36,7 @@ export interface Transporter {
   schools: string[];
   neighborhoods: string[];
   monthlyFee: number; // mensalidade estimada para o bairro buscado
-  availableSeats: number;
   vehiclePlate?: string;
-  capacity?: number;
 }
 
 export interface Review {
@@ -239,7 +237,6 @@ export interface TransporterProfileDto {
   photoUrl: string | null;
   cnh: string | null;
   plate: string | null;
-  capacity: number | null;
   baseMonthlyFee: number;
   acceptsProposals: boolean;
   schools: string[];
@@ -257,7 +254,6 @@ export interface TransporterSummaryDto {
   schools: string[];
   neighborhoods: string[];
   monthlyFee: number;
-  availableSeats: number;
 }
 
 /** Avaliação exibida no perfil público. */
@@ -281,7 +277,6 @@ export interface TransporterDetailDto {
   neighborhoods: string[];
   monthlyFee: number;
   acceptsProposals: boolean;
-  availableSeats: number;
   helpers: HelperDto[];
   reviews: TransporterReviewDto[];
 }
@@ -304,7 +299,9 @@ export interface PaymentMethodDto {
 export interface ContractDto {
   id: number;
   status: ContractStatus;
+  transporterId: number;
   transporterName: string;
+  dependentId: number;
   studentName: string;
   school: string;
   monthlyFee: number;
