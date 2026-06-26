@@ -1,14 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { AuthResponse, login as apiLogin } from '@/api/auth';
+import { registerPushToken, removePushToken } from '@/api/account';
 import { listDependents } from '@/api/dependents';
+import { registerForPushNotifications } from '@/lib/push';
 import { AuthUser, DependentDto, UserRole } from '@/types';
 
 const STORAGE_KEY = 'vanbora.session';
@@ -62,6 +66,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [dependents, setDependents] = useState<DependentDto[]>([]);
   const [selectedDependentId, setSelectedDependentId] = useState<number | null>(null);
+  // Token de push (Expo) do aparelho, para removê-lo do backend no logout.
+  const pushTokenRef = useRef<string | null>(null);
 
   // Restaura sessão persistida ao iniciar.
   useEffect(() => {
@@ -115,6 +121,22 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [token, role, refreshDependents]);
 
+  // Registra o token de push do aparelho no backend quando há sessão.
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    registerForPushNotifications()
+      .then((expoToken) => {
+        if (cancelled || !expoToken) return;
+        pushTokenRef.current = expoToken;
+        registerPushToken(token, expoToken, Platform.OS).catch(() => undefined);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
   const applySession = useCallback(async (response: AuthResponse): Promise<UserRole> => {
     const appRole = toAppRole(response.user.role);
     setToken(response.token);
@@ -137,6 +159,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    // Desregistra o push deste aparelho antes de limpar a sessão (best-effort).
+    if (token && pushTokenRef.current) {
+      removePushToken(token, pushTokenRef.current).catch(() => undefined);
+    }
+    pushTokenRef.current = null;
     setToken(null);
     setUser(null);
     setRole(null);
@@ -144,7 +171,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setDependents([]);
     setSelectedDependentId(null);
     AsyncStorage.removeItem(STORAGE_KEY).catch(() => undefined);
-  }, []);
+  }, [token]);
 
   const value = useMemo(
     () => ({

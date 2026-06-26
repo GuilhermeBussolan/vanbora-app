@@ -15,9 +15,11 @@ import type { ThemeColors, Typography } from '@/theme';
 type SettingItem = { icon: keyof typeof Ionicons.glyphMap; label: string; route: string };
 
 const SETTINGS: SettingItem[] = [
+  { icon: 'document-outline', label: 'Modelo de Contrato', route: '/edit-contract-template' },
   { icon: 'lock-closed-outline', label: 'Alterar Senha', route: '/change-password' },
   { icon: 'notifications-outline', label: 'Notificações', route: '/notifications-settings' },
   { icon: 'moon-outline', label: 'Aparência', route: '/appearance-settings' },
+  { icon: 'shield-checkmark-outline', label: 'Privacidade e Dados', route: '/privacy-data' },
   { icon: 'document-text-outline', label: 'Termos de Uso', route: '/terms' },
 ];
 

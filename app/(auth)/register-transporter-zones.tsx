@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AppHeader, Button, Input, Screen, StepProgress } from '@/components';
+import { AppHeader, Button, ConsentCheckbox, Input, Screen, StepProgress } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { registerTransporter } from '@/api/auth';
 import { parseAmount } from '../add-expense';
@@ -26,6 +26,7 @@ export default function RegisterTransporterZonesScreen() {
   const [schools, setSchools] = useState<string[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
   const [fee, setFee] = useState('');
+  const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +38,10 @@ export default function RegisterTransporterZonesScreen() {
     const feeValue = fee.trim() ? parseAmount(fee) : 0;
     if (feeValue == null || feeValue < 0) {
       setError('Informe um valor de tabela válido.');
+      return;
+    }
+    if (!accepted) {
+      setError('É necessário ler e aceitar a Política de Privacidade e os Termos de Uso.');
       return;
     }
     setLoading(true);
@@ -53,6 +58,7 @@ export default function RegisterTransporterZonesScreen() {
         schools,
         neighborhoods,
         baseMonthlyFee: feeValue,
+        acceptedTerms: accepted,
       });
       await applySession(session);
       router.replace('/(transporter)/home');
@@ -96,6 +102,8 @@ export default function RegisterTransporterZonesScreen() {
         value={fee}
         onChangeText={setFee}
       />
+
+      <ConsentCheckbox checked={accepted} onToggle={() => setAccepted((v) => !v)} />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </Screen>

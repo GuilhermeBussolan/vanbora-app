@@ -39,6 +39,13 @@ export interface GuardianDashboardDto {
   weekAttendance: DayAttendance[];
   nextPayment: NextPayment | null;
   notice: DashboardNotice | null;
+  /** Solicitação pendente de aceite do transportador (acompanhamento na home). */
+  pendingHireRequestId: number | null;
+  pendingHireTransporterName: string | null;
+  pendingHireExpiresAt: string | null;
+  /** Solicitação recusada ainda não dispensada. */
+  rejectedHireRequestId: number | null;
+  rejectedHireTransporterName: string | null;
 }
 
 /** Monta `?dependentId=...` (ou vazio) para as rotas por dependente. */

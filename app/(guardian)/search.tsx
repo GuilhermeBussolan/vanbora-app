@@ -2,9 +2,9 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Avatar, Button, Card, Input, Screen, StarRating } from '@/components';
+import { AutocompleteInput, Avatar, Button, Card, Screen, StarRating } from '@/components';
 import { useAppState } from '@/context/AppState';
-import { searchTransporters } from '@/api/transporter';
+import { getSearchFilters, searchTransporters } from '@/api/transporter';
 import { mediaUrl } from '@/api/client';
 import { formatCurrency } from '@/data/mockData';
 import { TransporterSummaryDto } from '@/types';
@@ -19,19 +19,23 @@ export default function SearchScreen() {
   const { token } = useAppState();
   const [school, setSchool] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
+  const [schoolOptions, setSchoolOptions] = useState<string[]>([]);
+  const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([]);
   const [sort, setSort] = useState<SortKey>('price');
   const [results, setResults] = useState<TransporterSummaryDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Busca com os filtros atuais; aceita overrides para rodar com o valor recém-selecionado
+  // (o state ainda não atualizou no mesmo ciclo de render).
   const runSearch = useCallback(
-    (sortKey: SortKey) => {
+    (sortKey: SortKey, schoolArg = school, neighborhoodArg = neighborhood) => {
       if (!token) return;
       setLoading(true);
       setError(null);
       searchTransporters(token, {
-        school: school.trim() || undefined,
-        neighborhood: neighborhood.trim() || undefined,
+        school: schoolArg.trim() || undefined,
+        neighborhood: neighborhoodArg.trim() || undefined,
         sort: sortKey,
       })
         .then(setResults)
@@ -41,10 +45,20 @@ export default function SearchScreen() {
     [token, school, neighborhood],
   );
 
-  // Carrega a lista inicial ao focar a tela.
+  // Carrega a lista inicial e as opções dos filtros ao focar a tela.
   useFocusEffect(
     useCallback(() => {
       runSearch(sort);
+      if (token) {
+        getSearchFilters(token)
+          .then((f) => {
+            setSchoolOptions(f.schools);
+            setNeighborhoodOptions(f.neighborhoods);
+          })
+          .catch(() => {
+            /* silencioso: filtros são um auxílio, não bloqueiam a busca */
+          });
+      }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token]),
   );
@@ -59,17 +73,21 @@ export default function SearchScreen() {
       <Text style={[typography.screenTitle, styles.title]}>Encontrar Transportador</Text>
 
       <View style={styles.form}>
-        <Input
+        <AutocompleteInput
           icon="school-outline"
           placeholder="Escola do seu filho"
           value={school}
           onChangeText={setSchool}
+          options={schoolOptions}
+          onSelect={(val) => runSearch(sort, val, neighborhood)}
         />
-        <Input
+        <AutocompleteInput
           icon="location-outline"
           placeholder="Bairro de atendimento"
           value={neighborhood}
           onChangeText={setNeighborhood}
+          options={neighborhoodOptions}
+          onSelect={(val) => runSearch(sort, school, val)}
         />
         <Button label="Buscar" icon="search" onPress={() => runSearch(sort)} />
       </View>
@@ -135,10 +153,24 @@ function ResultCard({ transporter }: { transporter: TransporterSummaryDto }) {
         </View>
       </View>
 
-      <Text style={styles.meta}>
-        {(transporter.schools[0] ?? 'Escolas a definir')} •{' '}
-        {(transporter.neighborhoods[0] ?? 'Bairros a definir')}
-      </Text>
+      <View style={styles.summary}>
+        <View style={styles.summaryRow}>
+          <Ionicons name="school-outline" size={14} color={colors.textSecondary} style={styles.summaryIcon} />
+          <Text style={styles.summaryText}>
+            {transporter.schools.length > 0
+              ? transporter.schools.join(' • ')
+              : 'Escolas a definir'}
+          </Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Ionicons name="location-outline" size={14} color={colors.textSecondary} style={styles.summaryIcon} />
+          <Text style={styles.summaryText}>
+            {transporter.neighborhoods.length > 0
+              ? transporter.neighborhoods.join(' • ')
+              : 'Bairros a definir'}
+          </Text>
+        </View>
+      </View>
 
       <View style={styles.cardBottom}>
         <View>
@@ -188,7 +220,10 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   list: { gap: spacing.md },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   cardInfo: { flex: 1, gap: 4 },
-  meta: { fontSize: 12, color: colors.textSecondary, marginTop: spacing.md },
+  summary: { marginTop: spacing.md, gap: 4 },
+  summaryRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  summaryIcon: { marginTop: 1, marginRight: 6 },
+  summaryText: { flex: 1, fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
   cardBottom: {
     flexDirection: 'row',
     alignItems: 'flex-end',

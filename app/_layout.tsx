@@ -1,6 +1,7 @@
 import '@/lib/polyfills';
-import React from 'react';
-import { Stack } from 'expo-router';
+import React, { useEffect } from 'react';
+import { router, Stack } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -10,6 +11,25 @@ import { ThemeProvider, useTheme } from '@/theme';
 /** Stack de navegação com cores/barra de status reativas ao tema ativo. */
 function ThemedStack() {
   const { colors, isDark } = useTheme();
+
+  // Ao tocar numa notificação push, abre a tela relacionada ao evento.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as {
+        type?: string;
+        contractId?: number | string;
+      };
+      if (data?.type === 'CONTRACT_RELEASED' && data.contractId != null) {
+        router.push(`/contract/${data.contractId}`);
+      } else if (data?.type === 'HIRE_REQUEST' || data?.type === 'HIRE_CANCELLED') {
+        router.push('/(transporter)/home');
+      } else if (data?.type) {
+        router.push('/(guardian)/home');
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -46,6 +66,9 @@ function ThemedStack() {
         <Stack.Screen name="attendance-history" />
         <Stack.Screen name="review-transporter" />
         <Stack.Screen name="terms" />
+        <Stack.Screen name="privacy-policy" />
+        <Stack.Screen name="privacy-data" />
+        <Stack.Screen name="edit-contract-template" />
         <Stack.Screen name="new-notice" />
         <Stack.Screen name="edit-notice" />
         <Stack.Screen name="notice-audience" />

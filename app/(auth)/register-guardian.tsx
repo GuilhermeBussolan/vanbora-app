@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { AppHeader, Button, Input, Screen } from '@/components';
+import { AppHeader, Button, ConsentCheckbox, Input, Screen } from '@/components';
 import { AddressFields, AddressValue, EMPTY_ADDRESS } from '@/components/feature/AddressFields';
 import { useAppState } from '@/context/AppState';
 import { registerGuardian } from '@/api/auth';
@@ -24,6 +24,7 @@ export default function RegisterGuardianScreen() {
   const [pickup, setPickup] = useState<AddressValue>(EMPTY_ADDRESS);
   const [deliverySame, setDeliverySame] = useState(true);
   const [delivery, setDelivery] = useState<AddressValue>(EMPTY_ADDRESS);
+  const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,6 +64,10 @@ export default function RegisterGuardianScreen() {
       setError('As senhas não conferem.');
       return;
     }
+    if (!accepted) {
+      setError('É necessário ler e aceitar a Política de Privacidade e os Termos de Uso.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -75,6 +80,7 @@ export default function RegisterGuardianScreen() {
         pickup,
         deliverySameAsPickup: deliverySame,
         delivery: deliverySame ? null : delivery,
+        acceptedTerms: accepted,
       });
       await applySession(session);
       router.replace('/(guardian)/home');
@@ -147,6 +153,8 @@ export default function RegisterGuardianScreen() {
           onChangeText={update('confirmPassword')}
         />
       </View>
+
+      <ConsentCheckbox checked={accepted} onToggle={() => setAccepted((v) => !v)} />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </Screen>

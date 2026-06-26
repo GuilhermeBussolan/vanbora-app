@@ -177,6 +177,8 @@ export interface GuardianNoticeDto {
   myReaction: string | null;
   commentsCount: number;
   reactions: ReactionGroup[];
+  /** "Lido": o responsável já abriu, reagiu ou comentou — sai da home. */
+  acknowledged: boolean;
 }
 
 // ----- Chat (integração real) -----
@@ -242,6 +244,23 @@ export interface TransporterProfileDto {
   schools: string[];
   neighborhoods: string[];
   helpers: HelperDto[];
+  /** Modelo de contrato (texto) do transportador; null usa o texto padrão. */
+  contractTemplate: string | null;
+}
+
+/** Situação do consentimento (LGPD) do usuário. */
+export interface ConsentStatusDto {
+  /** true = consentimento vigente (aceito e não revogado). */
+  granted: boolean;
+  version: string | null;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+}
+
+/** Opções dos filtros de busca (escolas/bairros já cadastrados, em ordem alfabética). */
+export interface SearchFiltersDto {
+  schools: string[];
+  neighborhoods: string[];
 }
 
 /** Resumo do transportador nos resultados de busca. */
@@ -306,6 +325,8 @@ export interface ContractDto {
   school: string;
   monthlyFee: number;
   signedAt: string | null;
+  /** Texto do contrato a ser lido e assinado (congelado na liberação). */
+  contractText: string | null;
 }
 
 /** Solicitação de contratação exibida ao transportador, com dados do responsável. */

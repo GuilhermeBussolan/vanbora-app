@@ -1,5 +1,6 @@
 export { Button } from './ui/Button';
 export { Input } from './ui/Input';
+export { AutocompleteInput } from './ui/AutocompleteInput';
 export { Card } from './ui/Card';
 export { Badge } from './ui/Badge';
 export { Chip } from './ui/Chip';
@@ -15,3 +16,4 @@ export { Screen } from './layout/Screen';
 export { AppHeader } from './layout/AppHeader';
 export { SchoolPicker } from './feature/SchoolPicker';
 export { SchoolRegisterModal } from './feature/SchoolRegisterModal';
+export { ConsentCheckbox } from './feature/ConsentCheckbox';

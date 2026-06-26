@@ -23,3 +23,13 @@ export function releaseContract(token: string, hireRequestId: number): Promise<v
 export function rejectHireRequest(token: string, hireRequestId: number): Promise<void> {
   return apiFetch<void>(`/api/hire-requests/${hireRequestId}/reject`, { method: 'POST', token });
 }
+
+/** [Responsável] Cancela a própria solicitação pendente (some da tela do transportador). */
+export function cancelHireRequest(token: string, hireRequestId: number): Promise<void> {
+  return apiFetch<void>(`/api/hire-requests/${hireRequestId}/cancel`, { method: 'POST', token });
+}
+
+/** [Responsável] Dispensa o aviso de uma solicitação recusada na home. */
+export function dismissHireRequest(token: string, hireRequestId: number): Promise<void> {
+  return apiFetch<void>(`/api/hire-requests/${hireRequestId}/dismiss`, { method: 'POST', token });
+}

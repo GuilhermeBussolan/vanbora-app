@@ -90,6 +90,12 @@ export default function TransporterHomeScreen() {
         ))}
       </View>
 
+      <Card style={styles.churnCard}>
+        <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
+        <Text style={styles.churnLabel}>Contratos cancelados</Text>
+        <Text style={styles.churnValue}>{metrics?.cancelledContracts ?? 0}</Text>
+      </Card>
+
       <SectionTitle title="Solicitações de Contratação" style={styles.section} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.list}>
@@ -263,6 +269,23 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     fontSize: 10,
     color: colors.textMuted,
     fontWeight: '600',
+  },
+  churnCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  churnLabel: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  churnValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.textPrimary,
   },
   section: {
     marginTop: spacing.xl,

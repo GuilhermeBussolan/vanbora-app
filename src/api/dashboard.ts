@@ -9,6 +9,8 @@ export interface DashboardMetrics {
   totalStudents: number;
   confirmed: number;
   absent: number;
+  /** Contratos cancelados (assinaturas encerradas) — indicador de churn. */
+  cancelledContracts: number;
 }
 
 export interface StudentDto {

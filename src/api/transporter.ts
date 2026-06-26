@@ -1,6 +1,16 @@
 /** Perfil do transportador: próprio (edição) e público (visto pelo responsável). */
-import { TransporterDetailDto, TransporterProfileDto, TransporterSummaryDto } from '@/types';
+import {
+  SearchFiltersDto,
+  TransporterDetailDto,
+  TransporterProfileDto,
+  TransporterSummaryDto,
+} from '@/types';
 import { apiFetch, apiUpload, UploadFile } from './client';
+
+/** Escolas e bairros já cadastrados (autocompletes da busca), em ordem alfabética. */
+export function getSearchFilters(token: string): Promise<SearchFiltersDto> {
+  return apiFetch<SearchFiltersDto>('/api/transporters/filters', { token });
+}
 
 /** Busca de transportadores por escola/bairro, ordenável por preço ou avaliação. */
 export function searchTransporters(
@@ -54,4 +64,16 @@ export function updatePricing(
 
 export function uploadMyPhoto(token: string, file: UploadFile): Promise<TransporterProfileDto> {
   return apiUpload<TransporterProfileDto>('/api/transporters/me/photo', file, token);
+}
+
+/** Define/limpa o modelo de contrato (texto) exibido ao responsável na assinatura. */
+export function updateContractTemplate(
+  token: string,
+  template: string | null,
+): Promise<TransporterProfileDto> {
+  return apiFetch<TransporterProfileDto>('/api/transporters/me/contract-template', {
+    method: 'PUT',
+    body: { template },
+    token,
+  });
 }

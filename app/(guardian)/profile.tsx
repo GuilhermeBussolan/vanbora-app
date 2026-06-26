@@ -16,6 +16,7 @@ const SETTINGS: SettingItem[] = [
   { icon: 'lock-closed-outline', label: 'Alterar Senha', route: '/change-password' },
   { icon: 'notifications-outline', label: 'Notificações', route: '/notifications-settings' },
   { icon: 'moon-outline', label: 'Aparência', route: '/appearance-settings' },
+  { icon: 'shield-checkmark-outline', label: 'Privacidade e Dados', route: '/privacy-data' },
   { icon: 'document-text-outline', label: 'Termos de Uso', route: '/terms' },
 ];
 

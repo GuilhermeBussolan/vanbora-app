@@ -66,7 +66,7 @@ export default function HireScreen() {
       });
       Alert.alert(
         'Solicitação enviada!',
-        `${transporterName} vai receber seu pedido e poderá liberar o contrato.`,
+        `${transporterName} tem 3 dias para aceitar. Acompanhe (e cancele, se quiser) pela tela inicial.`,
         [{ text: 'OK', onPress: () => router.replace('/(guardian)/home') }],
       );
     } catch (err: any) {

@@ -38,6 +38,7 @@ export default function ContractScreen() {
   const [cardType, setCardType] = useState<PaymentMethodType>('CREDIT_CARD');
   const [savingCard, setSavingCard] = useState(false);
   const [signing, setSigning] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -139,7 +140,7 @@ export default function ContractScreen() {
             icon="create-outline"
             onPress={handleSign}
             loading={signing}
-            disabled={!selectedMethod}
+            disabled={!selectedMethod || !agreed}
           />
         ) : undefined
       }
@@ -158,6 +159,15 @@ export default function ContractScreen() {
         />
       </Card>
 
+      {contract?.contractText ? (
+        <>
+          <Text style={[typography.sectionTitle, styles.section]}>Termos do contrato</Text>
+          <Card style={styles.contractTextCard}>
+            <Text style={styles.contractText}>{contract.contractText}</Text>
+          </Card>
+        </>
+      ) : null}
+
       {alreadyActive ? (
         <Card style={styles.activeCard}>
           <Ionicons name="checkmark-circle" size={22} color={colors.success} />
@@ -165,6 +175,13 @@ export default function ContractScreen() {
         </Card>
       ) : (
         <>
+          <Pressable onPress={() => setAgreed((v) => !v)} style={styles.agreeRow} hitSlop={6}>
+            <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+              {agreed ? <Ionicons name="checkmark" size={15} color={colors.textOnBrand} /> : null}
+            </View>
+            <Text style={styles.agreeText}>Li e concordo com os termos deste contrato.</Text>
+          </Pressable>
+
           <Text style={[typography.sectionTitle, styles.section]}>Forma de pagamento</Text>
 
           <View style={styles.methods}>
@@ -291,6 +308,25 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   rowValue: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   rowValueStrong: { fontSize: 18, fontWeight: '800', color: colors.brandDark },
   section: { marginTop: spacing.xl, marginBottom: spacing.md },
+  contractTextCard: { backgroundColor: colors.surface },
+  contractText: { fontSize: 13, lineHeight: 20, color: colors.textPrimary },
+  agreeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: colors.inputBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: colors.brand, borderColor: colors.brand },
+  agreeText: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.textPrimary },
   methods: { gap: spacing.sm },
   methodCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   methodSelected: { borderColor: colors.brand, borderWidth: 2 },

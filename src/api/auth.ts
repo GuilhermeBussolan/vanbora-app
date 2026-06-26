@@ -33,6 +33,8 @@ export interface RegisterGuardianBody {
   pickup: AddressBody;
   deliverySameAsPickup: boolean;
   delivery?: AddressBody | null;
+  /** Aceite da Política de Privacidade + Termos de Uso (LGPD). */
+  acceptedTerms: boolean;
 }
 
 /** Cadastra um responsável e já devolve a sessão (token + usuário). */
@@ -51,6 +53,8 @@ export interface RegisterTransporterBody {
   schools?: string[];
   neighborhoods?: string[];
   baseMonthlyFee?: number | null;
+  /** Aceite da Política de Privacidade + Termos de Uso (LGPD). */
+  acceptedTerms: boolean;
 }
 
 /** Cadastra um transportador (com área e preço) e já devolve a sessão. */

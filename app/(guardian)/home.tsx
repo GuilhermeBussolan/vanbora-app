@@ -1,10 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { getGuardianDashboard, GuardianDashboardDto } from '@/api/guardian';
+import { cancelHireRequest, dismissHireRequest } from '@/api/hire';
 import { listGuardianNotices, removeReaction, setReaction } from '@/api/notices';
 import { GuardianNoticeDto, NOTICE_EMOJIS } from '@/types';
 import { formatCurrency } from '@/data/mockData';
@@ -23,26 +24,78 @@ export default function GuardianHomeScreen() {
   const { colors, typography, styles } = useThemedScreen(createStyles);
   const { user, token, dependents, selectedDependentId, selectDependent } = useAppState();
   const [dashboard, setDashboard] = useState<GuardianDashboardDto | null>(null);
+  const [notices, setNotices] = useState<GuardianNoticeDto[]>([]);
 
+  const reloadDashboard = useCallback(() => {
+    if (!token) return;
+    getGuardianDashboard(token, selectedDependentId)
+      .then(setDashboard)
+      .catch(() => setDashboard(null));
+  }, [token, selectedDependentId]);
+
+  useFocusEffect(reloadDashboard);
+
+  async function handleCancelHire(id: number) {
+    if (!token) return;
+    try {
+      await cancelHireRequest(token, id);
+      reloadDashboard();
+    } catch (err: any) {
+      Alert.alert('Erro', err?.message ?? 'Não foi possível cancelar a solicitação.');
+    }
+  }
+
+  async function handleDismissRejected(id: number) {
+    if (!token) return;
+    try {
+      await dismissHireRequest(token, id);
+      reloadDashboard();
+    } catch {
+      /* ignora */
+    }
+  }
+
+  // Avisos do responsável — alimentam tanto o sino quanto os cards "novos" da home.
   useFocusEffect(
     useCallback(() => {
       let active = true;
       if (token) {
-        getGuardianDashboard(token, selectedDependentId)
-          .then((d) => active && setDashboard(d))
-          .catch(() => active && setDashboard(null));
+        listGuardianNotices(token)
+          .then((list) => active && setNotices(list))
+          .catch(() => active && setNotices([]));
       }
       return () => {
         active = false;
       };
-    }, [token, selectedDependentId]),
+    }, [token]),
   );
+
+  // "Novos" = ainda não abertos, reagidos nem comentados pelo responsável.
+  const newNotices = notices.filter((n) => !n.acknowledged);
+
+  async function handleReact(notice: GuardianNoticeDto, emoji: string) {
+    if (!token) return;
+    try {
+      const updated =
+        notice.myReaction === emoji
+          ? await removeReaction(token, notice.id)
+          : await setReaction(token, notice.id, emoji);
+      setNotices((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+    } catch {
+      /* ignora */
+    }
+  }
 
   return (
     <Screen>
-      <Text style={[typography.screenTitle, styles.greeting]}>
-        {greeting()}, {user?.name ?? ''}
-      </Text>
+      <View style={styles.headerRow}>
+        <Text style={[typography.screenTitle, styles.greetingFlex]} numberOfLines={1}>
+          {greeting()}, {user?.name ?? ''}
+        </Text>
+        <NoticeBell count={newNotices.length} />
+      </View>
+
+      <NewNoticesSection notices={newNotices} onReact={handleReact} />
 
       {dependents.length > 1 ? (
         <View style={styles.switcher}>
@@ -72,6 +125,10 @@ export default function GuardianHomeScreen() {
         <PopulatedDashboard dashboard={dashboard} />
       ) : dashboard?.pendingContractId ? (
         <PendingContractCard dashboard={dashboard} />
+      ) : dashboard?.pendingHireRequestId ? (
+        <PendingHireCard dashboard={dashboard} onCancel={handleCancelHire} />
+      ) : dashboard?.rejectedHireRequestId ? (
+        <RejectedHireCard dashboard={dashboard} onDismiss={handleDismissRejected} />
       ) : (
         <EmptyDashboard dependentName={dashboard?.studentName ?? null} />
       )}
@@ -103,77 +160,189 @@ function PendingContractCard({ dashboard }: { dashboard: GuardianDashboardDto })
   );
 }
 
-/** Card do aviso mais recente, tocável (tela cheia) e com reação inline. */
-function LatestNoticeCard() {
-  const { colors, typography, styles } = useThemedScreen(createStyles);
-  const { token } = useAppState();
-  const [notice, setNotice] = useState<GuardianNoticeDto | null>(null);
+/** Rótulo "expira em X" a partir da data ISO de expiração. */
+function expiresInLabel(iso: string): string {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return 'Expirando…';
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    return `Expira em ${days} dia${days > 1 ? 's' : ''}`;
+  }
+  if (hours >= 1) return `Expira em ${hours} h`;
+  return `Expira em ${Math.max(1, Math.floor(ms / 60_000))} min`;
+}
 
-  useFocusEffect(
-    React.useCallback(() => {
-      let active = true;
-      if (token) {
-        listGuardianNotices(token)
-          .then((list) => active && setNotice(list[0] ?? null))
-          .catch(() => active && setNotice(null));
-      }
-      return () => {
-        active = false;
-      };
-    }, [token]),
-  );
+/** Card: solicitação enviada, aguardando o transportador aceitar (com cancelar). */
+function PendingHireCard({
+  dashboard,
+  onCancel,
+}: {
+  dashboard: GuardianDashboardDto;
+  onCancel: (id: number) => void;
+}) {
+  const { colors, styles } = useThemedScreen(createStyles);
+  const id = dashboard.pendingHireRequestId as number;
+  const name = dashboard.pendingHireTransporterName ?? 'o transportador';
+  const student = dashboard.studentName ? firstName(dashboard.studentName) : null;
 
-  async function react(emoji: string) {
-    if (!token || !notice) return;
-    try {
-      const updated =
-        notice.myReaction === emoji
-          ? await removeReaction(token, notice.id)
-          : await setReaction(token, notice.id, emoji);
-      setNotice(updated);
-    } catch {
-      /* ignora */
-    }
+  function confirmCancel() {
+    Alert.alert(
+      'Cancelar solicitação',
+      `Deseja cancelar a solicitação para ${name}? Você poderá enviar para outro transportador.`,
+      [
+        { text: 'Voltar', style: 'cancel' },
+        { text: 'Cancelar solicitação', style: 'destructive', onPress: () => onCancel(id) },
+      ],
+    );
   }
 
-  if (!notice) return null;
+  return (
+    <Card style={styles.hirePendingCard}>
+      <View style={styles.hireHeader}>
+        <View style={styles.hireIcon}>
+          <Ionicons name="hourglass-outline" size={20} color={colors.brandDark} />
+        </View>
+        <View style={styles.flex}>
+          <Text style={styles.hireTitle}>Solicitação enviada</Text>
+          <Text style={styles.hireText}>
+            Aguardando {name} aceitar{student ? ` o transporte de ${student}` : ''}.
+          </Text>
+        </View>
+      </View>
+      <View style={styles.hireMetaRow}>
+        <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+        <Text style={styles.hireMeta}>
+          {dashboard.pendingHireExpiresAt
+            ? `${expiresInLabel(dashboard.pendingHireExpiresAt)} — cancela sozinha se não houver resposta`
+            : 'Válida por 3 dias — cancela sozinha se não houver resposta'}
+        </Text>
+      </View>
+      <Button
+        label="Cancelar solicitação"
+        variant="outline"
+        icon="close-circle-outline"
+        onPress={confirmCancel}
+        style={styles.hireBtn}
+      />
+    </Card>
+  );
+}
+
+/** Card: solicitação recusada pelo transportador (dispensar / buscar outro). */
+function RejectedHireCard({
+  dashboard,
+  onDismiss,
+}: {
+  dashboard: GuardianDashboardDto;
+  onDismiss: (id: number) => void;
+}) {
+  const { colors, styles } = useThemedScreen(createStyles);
+  const id = dashboard.rejectedHireRequestId as number;
+  const name = dashboard.rejectedHireTransporterName ?? 'O transportador';
 
   return (
-    <Card style={styles.noticeCard}>
-      <Pressable onPress={() => router.push(`/notice/${notice.id}`)}>
-        <View style={styles.noticeHeader}>
-          <Ionicons name="megaphone-outline" size={18} color={colors.brandDark} />
-          <Text style={styles.noticeTitle}>Aviso do Transportador</Text>
-          <View style={styles.flex} />
-          <Pressable hitSlop={6} onPress={() => router.push('/guardian-notices')}>
-            <Text style={styles.seeAll}>Ver todos</Text>
-          </Pressable>
+    <Card style={styles.hireRejectedCard}>
+      <View style={styles.hireHeader}>
+        <View style={styles.hireIconDanger}>
+          <Ionicons name="close" size={20} color={colors.danger} />
         </View>
-        {notice.title ? (
-          <Text style={styles.noticeCardTitle} numberOfLines={1}>
-            {notice.title}
+        <View style={styles.flex}>
+          <Text style={styles.hireTitle}>Solicitação recusada</Text>
+          <Text style={styles.hireText}>
+            {name} não aceitou a solicitação. Você pode buscar outro transportador.
           </Text>
-        ) : null}
-        <Text style={styles.noticeMessage} numberOfLines={notice.title ? 2 : 3}>
-          {notice.message}
-        </Text>
-      </Pressable>
-
-      <View style={styles.reactionRow}>
-        {NOTICE_EMOJIS.map((emoji) => {
-          const selected = notice.myReaction === emoji;
-          return (
-            <Pressable
-              key={emoji}
-              onPress={() => react(emoji)}
-              style={[styles.reactionBtn, selected && styles.reactionBtnSelected]}
-            >
-              <Text style={styles.reactionEmoji}>{emoji}</Text>
-            </Pressable>
-          );
-        })}
+        </View>
+      </View>
+      <View style={styles.hireActions}>
+        <Button
+          label="Dispensar"
+          variant="outline"
+          onPress={() => onDismiss(id)}
+          style={styles.hireActionBtn}
+        />
+        <Button
+          label="Buscar outro"
+          icon="search"
+          onPress={() => router.push('/(guardian)/search')}
+          style={styles.hireActionBtn}
+        />
       </View>
     </Card>
+  );
+}
+
+/** Sino de avisos no topo da home: badge com a contagem de avisos novos. */
+function NoticeBell({ count }: { count: number }) {
+  const { colors, styles } = useThemedScreen(createStyles);
+  return (
+    <Pressable
+      onPress={() => router.push('/guardian-notices')}
+      hitSlop={8}
+      style={styles.bell}
+      accessibilityLabel={`Avisos${count > 0 ? `, ${count} novo${count > 1 ? 's' : ''}` : ''}`}
+    >
+      <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
+      {count > 0 ? (
+        <View style={styles.bellBadge}>
+          <Text style={styles.bellBadgeText}>{count > 9 ? '9+' : count}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+/** Avisos novos (não lidos) empilhados na home; cada um abre em tela cheia e reage inline. */
+function NewNoticesSection({
+  notices,
+  onReact,
+}: {
+  notices: GuardianNoticeDto[];
+  onReact: (notice: GuardianNoticeDto, emoji: string) => void;
+}) {
+  const { colors, styles } = useThemedScreen(createStyles);
+  if (notices.length === 0) return null;
+
+  return (
+    <View style={styles.noticesWrap}>
+      {notices.map((notice) => (
+        <Card key={notice.id} style={styles.noticeCard}>
+          <Pressable onPress={() => router.push(`/notice/${notice.id}`)}>
+            <View style={styles.noticeHeader}>
+              <Ionicons name="megaphone-outline" size={18} color={colors.brandDark} />
+              <Text style={styles.noticeTitle}>Aviso do Transportador</Text>
+              <View style={styles.flex} />
+              <View style={styles.newTag}>
+                <Text style={styles.newTagText}>NOVO</Text>
+              </View>
+            </View>
+            {notice.title ? (
+              <Text style={styles.noticeCardTitle} numberOfLines={1}>
+                {notice.title}
+              </Text>
+            ) : null}
+            <Text style={styles.noticeMessage} numberOfLines={notice.title ? 2 : 3}>
+              {notice.message}
+            </Text>
+          </Pressable>
+
+          <View style={styles.reactionRow}>
+            {NOTICE_EMOJIS.map((emoji) => {
+              const selected = notice.myReaction === emoji;
+              return (
+                <Pressable
+                  key={emoji}
+                  onPress={() => onReact(notice, emoji)}
+                  style={[styles.reactionBtn, selected && styles.reactionBtnSelected]}
+                >
+                  <Text style={styles.reactionEmoji}>{emoji}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+      ))}
+    </View>
   );
 }
 
@@ -211,8 +380,6 @@ function PopulatedDashboard({ dashboard }: { dashboard: GuardianDashboardDto }) 
           </Card>
         </Pressable>
       ) : null}
-
-      <LatestNoticeCard />
 
       {/* Hoje — vai ou não vai + atalho para avisar falta */}
       <Card>
@@ -383,8 +550,53 @@ function formatDate(iso: string): string {
 
 const createStyles = (colors: ThemeColors, typography: Typography) =>
   StyleSheet.create({
-  greeting: {
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     marginBottom: spacing.lg,
+  },
+  greetingFlex: {
+    flex: 1,
+  },
+  bell: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.textOnBrand,
+  },
+  noticesWrap: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  newTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand,
+  },
+  newTagText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    color: colors.textOnBrand,
   },
   switcher: {
     flexDirection: 'row',
@@ -425,6 +637,72 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     gap: spacing.md,
     backgroundColor: colors.brandSoft,
     borderColor: colors.brand,
+  },
+  hirePendingCard: {
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brand,
+  },
+  hireRejectedCard: {
+    backgroundColor: colors.dangerBg,
+    borderColor: colors.danger,
+  },
+  hireHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  hireIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hireIconDanger: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hireTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  hireText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  hireMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.md,
+  },
+  hireMeta: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  hireBtn: {
+    marginTop: spacing.lg,
+    height: 44,
+    borderColor: colors.danger,
+  },
+  hireActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  hireActionBtn: {
+    flex: 1,
+    height: 44,
   },
   reviewBanner: {
     flexDirection: 'row',
@@ -467,11 +745,6 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   },
   flex: {
     flex: 1,
-  },
-  seeAll: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.brandDark,
   },
   reactionRow: {
     flexDirection: 'row',
