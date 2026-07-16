@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader, Button, Card, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { createReview } from '@/api/reviews';
-import { cancelContract } from '@/api/contracts';
-import { spacing, useThemedScreen } from '@/theme';
+import { cancelContract, getCancellationPreview } from '@/api/contracts';
+import { listPaymentMethods } from '@/api/payments';
+import { formatCurrency } from '@/data/mockData';
+import { CancellationPreviewDto, PaymentMethodDto } from '@/types';
+import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
 
 /**
@@ -38,10 +41,41 @@ export default function ReviewTransporterScreen() {
   const [comment, setComment] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<CancellationPreviewDto | null>(null);
+  const [methods, setMethods] = useState<PaymentMethodDto[]>([]);
+  const [selectedMethod, setSelectedMethod] = useState<number | null>(null);
+
+  // No cancelamento, carrega a prévia (multa/reembolso) e, se houver multa, os meios de pagamento.
+  useEffect(() => {
+    if (!isCancel || !token || !params.contractId) return;
+    let active = true;
+    getCancellationPreview(token, Number(params.contractId))
+      .then((p) => {
+        if (!active) return;
+        setPreview(p);
+        if (p.requiresPayment) {
+          listPaymentMethods(token)
+            .then((m) => {
+              if (!active) return;
+              setMethods(m);
+              setSelectedMethod(m[0]?.id ?? null);
+            })
+            .catch(() => undefined);
+        }
+      })
+      .catch((e) => active && setError(e?.message ?? 'Falha ao calcular a rescisão.'));
+    return () => {
+      active = false;
+    };
+  }, [isCancel, token, params.contractId]);
 
   async function submit() {
     if (rating < 1) {
       setError('Toque nas estrelas para dar uma nota.');
+      return;
+    }
+    if (isCancel && preview?.requiresPayment && !selectedMethod) {
+      setError('Escolha a forma de pagamento da multa para cancelar.');
       return;
     }
     if (!token) return;
@@ -49,7 +83,7 @@ export default function ReviewTransporterScreen() {
     setError(null);
     try {
       if (isCancel) {
-        await cancelContract(token, Number(params.contractId), rating, comment);
+        await cancelContract(token, Number(params.contractId), rating, comment, selectedMethod);
         Alert.alert('Contrato cancelado', 'Seu transporte foi encerrado e sua avaliação registrada.');
         router.replace('/(guardian)/home');
       } else {
@@ -65,9 +99,14 @@ export default function ReviewTransporterScreen() {
   }
 
   function confirmCancel() {
+    const extra = preview?.requiresPayment
+      ? ` Será cobrada uma multa de ${formatCurrency(preview.fineAmount)}.`
+      : preview && preview.refundAmount > 0
+        ? ` Você receberá ${formatCurrency(preview.refundAmount)} de reembolso.`
+        : '';
     Alert.alert(
       'Cancelar transporte',
-      `Tem certeza que deseja encerrar o transporte com ${name}? Esta ação não pode ser desfeita.`,
+      `Tem certeza que deseja encerrar o transporte com ${name}?${extra} Esta ação não pode ser desfeita.`,
       [
         { text: 'Voltar', style: 'cancel' },
         { text: 'Cancelar transporte', style: 'destructive', onPress: submit },
@@ -102,6 +141,58 @@ export default function ReviewTransporterScreen() {
           ? `Para encerrar o transporte com ${name}, conte como foi a experiência.`
           : `Como está sendo a experiência com ${name}?`}
       </Text>
+
+      {isCancel && preview ? (
+        <Card style={styles.previewCard}>
+          <View style={styles.previewRow}>
+            <Ionicons
+              name={
+                preview.requiresPayment
+                  ? 'alert-circle'
+                  : preview.refundAmount > 0
+                    ? 'cash-outline'
+                    : 'information-circle-outline'
+              }
+              size={20}
+              color={preview.requiresPayment ? colors.danger : colors.brandDark}
+            />
+            <Text style={styles.previewText}>{preview.message}</Text>
+          </View>
+          {preview.requiresPayment ? (
+            <View style={styles.methodList}>
+              <Text style={styles.fieldLabel}>Forma de pagamento da multa</Text>
+              {methods.length === 0 ? (
+                <Text style={styles.previewMuted}>
+                  Nenhum cartão cadastrado. Cadastre um meio de pagamento (no contrato) antes de cancelar.
+                </Text>
+              ) : (
+                methods.map((m) => {
+                  const sel = m.id === selectedMethod;
+                  return (
+                    <Pressable key={m.id} onPress={() => setSelectedMethod(m.id)}>
+                      <View style={[styles.methodCard, sel && styles.methodSelected]}>
+                        <Ionicons
+                          name={m.type === 'AUTO_DEBIT' ? 'sync-outline' : 'card-outline'}
+                          size={18}
+                          color={colors.textPrimary}
+                        />
+                        <Text style={styles.methodText}>
+                          {m.brand} •••• {m.last4}
+                        </Text>
+                        <Ionicons
+                          name={sel ? 'radio-button-on' : 'radio-button-off'}
+                          size={18}
+                          color={sel ? colors.brandDark : colors.textMuted}
+                        />
+                      </View>
+                    </Pressable>
+                  );
+                })
+              )}
+            </View>
+          ) : null}
+        </Card>
+      ) : null}
 
       <Card style={styles.starCard}>
         <View style={styles.stars}>
@@ -162,6 +253,23 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
       marginBottom: spacing.lg,
       lineHeight: 19,
     },
+    previewCard: { marginBottom: spacing.lg, gap: spacing.md },
+    previewRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
+    previewText: { flex: 1, fontSize: 13, color: colors.textPrimary, lineHeight: 19 },
+    previewMuted: { fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
+    methodList: { gap: spacing.sm },
+    methodCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.white,
+    },
+    methodSelected: { borderColor: colors.brand, borderWidth: 2 },
+    methodText: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.textPrimary },
     starCard: { alignItems: 'center', paddingVertical: spacing.xl },
     stars: { flexDirection: 'row', gap: spacing.sm },
     ratingLabel: {

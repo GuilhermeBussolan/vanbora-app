@@ -231,6 +231,17 @@ export interface HelperDto {
 }
 
 /** Perfil próprio do transportador (tela "Meu Perfil"). */
+/** Zona de preço por escola/bairro (visão de edição, vinda da API). */
+export interface PriceZoneDto {
+  id: number;
+  name: string;
+  school: string | null;
+  neighborhoods: string[];
+  monthlyFee: number;
+  annualFee: number | null;
+  installmentMonthlyFee: number | null;
+}
+
 export interface TransporterProfileDto {
   id: number;
   name: string;
@@ -239,13 +250,42 @@ export interface TransporterProfileDto {
   photoUrl: string | null;
   cnh: string | null;
   plate: string | null;
+  /** Plano mensal (valor de tabela). */
   baseMonthlyFee: number;
+  /** Plano anual (total à vista); null = não oferecido. */
+  annualPlanFee: number | null;
+  /** Plano parcelado (mensalidade com fidelidade); null = não oferecido. */
+  installmentMonthlyFee: number | null;
   acceptsProposals: boolean;
   schools: string[];
   neighborhoods: string[];
+  priceZones: PriceZoneDto[];
   helpers: HelperDto[];
   /** Modelo de contrato (texto) do transportador; null usa o texto padrão. */
   contractTemplate: string | null;
+}
+
+/** Janela agendada de compartilhamento (dayOfWeek ISO 1=seg…7=dom; horas "HH:mm"). */
+export interface LocationWindowDto {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
+/** Config de compartilhamento de localização do transportador. */
+export interface LocationSharingDto {
+  enabled: boolean;
+  windows: LocationWindowDto[];
+}
+
+/** Taxas do VanBora (frações; ex.: 0.05 = 5%), de GET /api/config/fees. */
+export interface FeesDto {
+  adminMonthly: number;
+  adminAnnual: number;
+  gatewayRate: number;
+  gatewayFixed: number;
+  fidelityMonths: number;
+  installmentFine: number;
 }
 
 /** Situação do consentimento (LGPD) do usuário. */
@@ -315,6 +355,9 @@ export interface PaymentMethodDto {
 }
 
 /** Contrato exibido ao responsável. */
+/** Plano de contratação. */
+export type PlanType = 'MONTHLY' | 'ANNUAL' | 'INSTALLMENT';
+
 export interface ContractDto {
   id: number;
   status: ContractStatus;
@@ -323,10 +366,34 @@ export interface ContractDto {
   dependentId: number;
   studentName: string;
   school: string;
+  /** Plano mensal (valor de tabela). */
   monthlyFee: number;
+  /** Plano anual total à vista; null = não ofertado. */
+  annualPlanFee: number | null;
+  /** Plano parcelado (mensalidade); null = não ofertado. */
+  installmentMonthlyFee: number | null;
+  /** Plano escolhido na assinatura (MONTHLY enquanto pendente). */
+  planType: PlanType;
+  /** Meses de fidelidade do plano assinado (0 = sem fidelidade). */
+  fidelityMonths: number | null;
+  /** Multa cobrada na rescisão (se houve). */
+  cancellationFine: number | null;
+  /** Reembolso devolvido na rescisão (se houve). */
+  refundAmount: number | null;
   signedAt: string | null;
   /** Texto do contrato a ser lido e assinado (congelado na liberação). */
   contractText: string | null;
+}
+
+/** Prévia da rescisão de um contrato (multa ou reembolso). */
+export interface CancellationPreviewDto {
+  planType: PlanType;
+  monthsElapsed: number;
+  fidelityActive: boolean;
+  fineAmount: number;
+  refundAmount: number;
+  requiresPayment: boolean;
+  message: string;
 }
 
 /** Solicitação de contratação exibida ao transportador, com dados do responsável. */

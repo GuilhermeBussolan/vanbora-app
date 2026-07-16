@@ -21,9 +21,14 @@ function ThemedStack() {
       };
       if (data?.type === 'CONTRACT_RELEASED' && data.contractId != null) {
         router.push(`/contract/${data.contractId}`);
-      } else if (data?.type === 'HIRE_REQUEST' || data?.type === 'HIRE_CANCELLED') {
+      } else if (
+        data?.type === 'HIRE_REQUEST' ||
+        data?.type === 'HIRE_CANCELLED' ||
+        data?.type === 'CONTRACT_CANCELLED'
+      ) {
         router.push('/(transporter)/home');
       } else if (data?.type) {
+        router.push('/(guardian)/home');
         router.push('/(guardian)/home');
       }
     });
@@ -55,6 +60,7 @@ function ThemedStack() {
         <Stack.Screen name="edit-vehicle" />
         <Stack.Screen name="edit-service-area" />
         <Stack.Screen name="edit-pricing" />
+        <Stack.Screen name="location-sharing" />
         <Stack.Screen name="hire/[id]" />
         <Stack.Screen name="add-expense" />
         <Stack.Screen name="add-fuel" />

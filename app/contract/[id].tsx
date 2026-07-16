@@ -14,7 +14,7 @@ import {
   validateCard,
 } from '@/lib/fakeCardToken';
 import { formatCurrency } from '@/data/mockData';
-import { ContractDto, PaymentMethodDto, PaymentMethodType } from '@/types';
+import { ContractDto, PaymentMethodDto, PaymentMethodType, PlanType } from '@/types';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
 
@@ -39,6 +39,7 @@ export default function ContractScreen() {
   const [savingCard, setSavingCard] = useState(false);
   const [signing, setSigning] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PlanType>('MONTHLY');
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -49,6 +50,8 @@ export default function ContractScreen() {
         listPaymentMethods(token),
       ]);
       setContract(c);
+      // Contrato já assinado: reflete o plano escolhido; pendente mantém o padrão (mensal).
+      if (c.status === 'ACTIVE') setSelectedPlan(c.planType);
       setMethods(m);
       setSelectedMethod((prev) => prev ?? m[0]?.id ?? null);
     } catch (err: any) {
@@ -91,7 +94,7 @@ export default function ContractScreen() {
     setSigning(true);
     setError(null);
     try {
-      const signed = await signContract(token, contractId, selectedMethod);
+      const signed = await signContract(token, contractId, selectedMethod, selectedPlan);
       setHasTransporter(true);
       Alert.alert(
         'Contrato assinado!',
@@ -153,8 +156,13 @@ export default function ContractScreen() {
         <Row label="Aluno" value={contract?.studentName ?? '—'} />
         <Row label="Escola" value={contract?.school ?? '—'} />
         <Row
-          label="Mensalidade"
-          value={contract ? formatCurrency(contract.monthlyFee) : '—'}
+          label={PLAN_LABEL[selectedPlan]}
+          value={
+            contract
+              ? formatCurrency(planCharge(contract, selectedPlan)) +
+                (selectedPlan === 'ANNUAL' ? ' à vista' : '/mês')
+              : '—'
+          }
           strong
         />
       </Card>
@@ -175,6 +183,32 @@ export default function ContractScreen() {
         </Card>
       ) : (
         <>
+          <Text style={[typography.sectionTitle, styles.section]}>Escolha o plano</Text>
+          <View style={styles.methods}>
+            {(contract ? buildPlanOptions(contract) : []).map((opt) => {
+              const selected = opt.type === selectedPlan;
+              return (
+                <Pressable key={opt.type} onPress={() => setSelectedPlan(opt.type)}>
+                  <Card style={StyleSheet.flatten([styles.methodCard, selected && styles.methodSelected])}>
+                    <Ionicons name={opt.icon} size={20} color={colors.textPrimary} />
+                    <View style={styles.flex}>
+                      <Text style={styles.methodTitle}>
+                        {opt.title} — {formatCurrency(opt.price)}
+                        {opt.unit}
+                      </Text>
+                      <Text style={styles.methodSub}>{opt.note}</Text>
+                    </View>
+                    <Ionicons
+                      name={selected ? 'radio-button-on' : 'radio-button-off'}
+                      size={20}
+                      color={selected ? colors.brandDark : colors.textMuted}
+                    />
+                  </Card>
+                </Pressable>
+              );
+            })}
+          </View>
+
           <Pressable onPress={() => setAgreed((v) => !v)} style={styles.agreeRow} hitSlop={6}>
             <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
               {agreed ? <Ionicons name="checkmark" size={15} color={colors.textOnBrand} /> : null}
@@ -287,6 +321,63 @@ export default function ContractScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </Screen>
   );
+}
+
+const PLAN_LABEL: Record<PlanType, string> = {
+  MONTHLY: 'Mensalidade',
+  ANNUAL: 'Plano anual',
+  INSTALLMENT: 'Parcelado (mensal)',
+};
+
+interface PlanOption {
+  type: PlanType;
+  title: string;
+  price: number;
+  unit: string;
+  note: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}
+
+/** Valor cobrado agora conforme o plano escolhido. */
+function planCharge(c: ContractDto, plan: PlanType): number {
+  if (plan === 'ANNUAL') return c.annualPlanFee ?? c.monthlyFee;
+  if (plan === 'INSTALLMENT') return c.installmentMonthlyFee ?? c.monthlyFee;
+  return c.monthlyFee;
+}
+
+/** Planos disponíveis para este contrato (mensal sempre; anual/parcelado se ofertados). */
+function buildPlanOptions(c: ContractDto): PlanOption[] {
+  const options: PlanOption[] = [
+    {
+      type: 'MONTHLY',
+      title: 'Mensal',
+      price: c.monthlyFee,
+      unit: '/mês',
+      note: 'Sem fidelidade. Cancele quando quiser, sem multa.',
+      icon: 'calendar-outline',
+    },
+  ];
+  if (c.installmentMonthlyFee != null) {
+    options.push({
+      type: 'INSTALLMENT',
+      title: 'Parcelado',
+      price: c.installmentMonthlyFee,
+      unit: '/mês',
+      note: 'Mais barato, com fidelidade de 12 meses (multa se cancelar antes).',
+      icon: 'card-outline',
+    });
+  }
+  if (c.annualPlanFee != null) {
+    options.push({
+      type: 'ANNUAL',
+      title: 'Anual',
+      price: c.annualPlanFee,
+      unit: ' à vista',
+      note: 'Pago de uma vez. Reembolso proporcional no cancelamento.',
+      icon: 'cash-outline',
+    });
+  }
+  return options;
 }
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {

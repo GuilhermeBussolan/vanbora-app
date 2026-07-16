@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
@@ -165,6 +165,7 @@ export function LeafletMap({
   expandable = true,
 }: LeafletMapProps) {
   const { colors, typography, styles } = useThemedScreen(createStyles);
+  const insets = useSafeAreaInsets();
   const [fullscreen, setFullscreen] = useState(false);
 
   const payload: Payload = useMemo(() => ({ points, live, drawPath }), [points, live, drawPath]);
@@ -189,25 +190,29 @@ export function LeafletMap({
       <Modal
         visible={fullscreen}
         animationType="slide"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
         onRequestClose={() => setFullscreen(false)}
         supportedOrientations={['portrait', 'landscape']}
       >
-        <SafeAreaView style={styles.modalRoot} edges={['top', 'bottom']}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Mapa</Text>
-            <Pressable
-              style={styles.closeBtn}
-              hitSlop={8}
-              onPress={() => setFullscreen(false)}
-              accessibilityLabel="Fechar mapa"
-            >
-              <Ionicons name="close" size={22} color={colors.textPrimary} />
-            </Pressable>
-          </View>
+        <View style={styles.modalRoot}>
           <View style={styles.modalMap}>
             {fullscreen ? <MapCanvas key="fullscreen" payload={payload} /> : null}
           </View>
-        </SafeAreaView>
+          {/* Barra renderizada DEPOIS do WebView e com zIndex/elevation altos:
+              garante que o "X" fique acima do mapa e receba o toque no iOS. */}
+          <View style={[styles.modalBar, { paddingTop: insets.top + spacing.sm }]}>
+            <Text style={styles.modalTitle}>Mapa</Text>
+            <Pressable
+              style={styles.closeBtn}
+              hitSlop={12}
+              onPress={() => setFullscreen(false)}
+              accessibilityLabel="Fechar mapa"
+            >
+              <Ionicons name="close" size={24} color={colors.textPrimary} />
+            </Pressable>
+          </View>
+        </View>
       </Modal>
     </>
   );
@@ -230,8 +235,8 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     position: 'absolute',
     bottom: spacing.sm,
     right: spacing.sm,
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: radius.md,
     backgroundColor: colors.white,
     alignItems: 'center',
@@ -248,14 +253,22 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     flex: 1,
     backgroundColor: colors.white,
   },
-  modalHeader: {
+  modalBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    // Fica acima do WebView (iOS: zIndex; Android: elevation).
+    zIndex: 30,
+    elevation: 30,
   },
   modalTitle: {
     fontSize: 16,
@@ -263,11 +276,12 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     color: colors.textPrimary,
   },
   closeBtn: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
   },
   modalMap: {
     flex: 1,

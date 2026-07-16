@@ -1,12 +1,34 @@
+import Constants from 'expo-constants';
+
 /**
  * Cliente HTTP mínimo para a API VanBora (Spring Boot).
  *
- * A base URL vem de `EXPO_PUBLIC_API_URL`. Em dispositivo físico, NÃO use
- * `localhost` — use o IP da máquina na rede local (ex.: http://192.168.0.10:8080),
- * pois "localhost" no celular aponta para o próprio celular. Veja o README.
+ * Resolução da base URL (nesta ordem):
+ *   1) `EXPO_PUBLIC_API_URL`, se definida (override manual);
+ *   2) o IP da máquina de desenvolvimento, descoberto a partir do host do Metro
+ *      (faz o app no Expo Go alcançar o backend na mesma rede automaticamente);
+ *   3) `http://localhost:8080` (web / fallback).
+ *
+ * Porta do backend pode ser ajustada via `EXPO_PUBLIC_API_PORT` (padrão 8080).
  */
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ?? 'http://localhost:8080';
+function resolveBaseUrl(): string {
+  const override = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+  if (override) return override;
+
+  const port = process.env.EXPO_PUBLIC_API_PORT ?? '8080';
+  const hostUri =
+    Constants.expoConfig?.hostUri ??
+    (Constants as { expoGoConfig?: { debuggerHost?: string } }).expoGoConfig?.debuggerHost ??
+    '';
+  const host = hostUri.split(':')[0];
+
+  if (host && host !== 'localhost' && host !== '127.0.0.1') {
+    return `http://${host}:${port}`;
+  }
+  return `http://localhost:${port}`;
+}
+
+export const API_BASE_URL = resolveBaseUrl();
 
 export class ApiError extends Error {
   constructor(

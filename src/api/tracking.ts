@@ -1,5 +1,22 @@
-import { ApiRouteStop, GuardianTracking } from '@/types';
+import { ApiRouteStop, GuardianTracking, LocationSharingDto } from '@/types';
 import { apiFetch } from './client';
+
+/** [Transportador] Configuração atual do compartilhamento (interruptor + janelas). */
+export function getLocationSharing(token: string): Promise<LocationSharingDto> {
+  return apiFetch<LocationSharingDto>('/api/transporters/me/location/sharing', { token });
+}
+
+/** [Transportador] Atualiza o interruptor mestre e as janelas de compartilhamento. */
+export function updateLocationSharing(
+  token: string,
+  body: LocationSharingDto,
+): Promise<LocationSharingDto> {
+  return apiFetch<LocationSharingDto>('/api/transporters/me/location/sharing', {
+    method: 'PUT',
+    body,
+    token,
+  });
+}
 
 /** [Transportador] Paradas da rota do dia (com coordenadas). */
 export function getMyRoute(token: string): Promise<ApiRouteStop[]> {

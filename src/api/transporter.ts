@@ -51,9 +51,26 @@ export function updateServiceArea(
   });
 }
 
+/** Zona de preço enviada ao salvar (id ausente = nova; ids que somem são removidos). */
+export interface PriceZoneInput {
+  id?: number;
+  name: string;
+  school: string | null;
+  neighborhoods: string[];
+  monthlyFee: number;
+  annualFee: number | null;
+  installmentMonthlyFee: number | null;
+}
+
 export function updatePricing(
   token: string,
-  body: { baseMonthlyFee: number; acceptsProposals: boolean },
+  body: {
+    monthlyFee: number;
+    annualFee: number | null;
+    installmentMonthlyFee: number | null;
+    acceptsProposals: boolean;
+    zones: PriceZoneInput[];
+  },
 ): Promise<TransporterProfileDto> {
   return apiFetch<TransporterProfileDto>('/api/transporters/me/pricing', {
     method: 'PUT',

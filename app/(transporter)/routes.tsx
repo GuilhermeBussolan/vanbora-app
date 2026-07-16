@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Badge, Button, Card, LeafletMap, MapPlaceholder, Screen } from '@/components';
 import { MapPoint } from '@/components/ui/LeafletMap';
 import { useAppState } from '@/context/AppState';
 import { useLocationBroadcast } from '@/hooks/useLocationBroadcast';
-import { getMyRoute, optimizeMyRoute } from '@/api/tracking';
-import { ApiRouteStop } from '@/types';
+import { getLocationSharing, getMyRoute, optimizeMyRoute } from '@/api/tracking';
+import { describeNextWindow } from '@/lib/locationSchedule';
+import { ApiRouteStop, LocationSharingDto } from '@/types';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
 
@@ -38,9 +40,25 @@ export default function RoutesScreen() {
   const [loading, setLoading] = useState(true);
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sharing, setSharing] = useState<LocationSharingDto | null>(null);
 
-  // Envia a localização do aparelho do transportador para a API.
-  const { current, permission } = useLocationBroadcast(token, true);
+  // Compartilha a localização respeitando o interruptor mestre + a agenda.
+  const { current, permission, active } = useLocationBroadcast(token, sharing);
+
+  // Recarrega a config de compartilhamento ao focar (reflete mudanças na tela de agenda).
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      if (token) {
+        getLocationSharing(token)
+          .then((s) => alive && setSharing(s))
+          .catch(() => undefined);
+      }
+      return () => {
+        alive = false;
+      };
+    }, [token]),
+  );
 
   const loadRoute = useCallback(async () => {
     if (!token) return;
@@ -106,9 +124,35 @@ export default function RoutesScreen() {
         />
       </View>
 
-      {permission === 'denied' ? (
+      <Pressable onPress={() => router.push('/location-sharing')}>
+        <Card style={styles.shareCard}>
+          <Ionicons
+            name={active ? 'radio' : sharing?.enabled ? 'time-outline' : 'location-outline'}
+            size={20}
+            color={active ? colors.success : sharing?.enabled ? colors.warning : colors.textMuted}
+          />
+          <View style={styles.shareInfo}>
+            <Text style={styles.shareTitle}>Compartilhamento de localização</Text>
+            <Text
+              style={[
+                styles.shareStatus,
+                { color: active ? colors.success : sharing?.enabled ? colors.warning : colors.textMuted },
+              ]}
+            >
+              {active
+                ? 'Compartilhando ao vivo'
+                : sharing?.enabled
+                  ? `Agendado${describeNextWindow(sharing) ? ` • próxima ${describeNextWindow(sharing)}` : ''}`
+                  : 'Desligado — toque para configurar'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Card>
+      </Pressable>
+
+      {permission === 'denied' && active ? (
         <Text style={styles.warn}>
-          Localização desativada — ative para aparecer no mapa dos responsáveis.
+          Localização negada — permita o acesso para aparecer no mapa dos responsáveis.
         </Text>
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -180,6 +224,15 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     height: 40,
     paddingHorizontal: spacing.lg,
   },
+  shareCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  shareInfo: { flex: 1 },
+  shareTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  shareStatus: { fontSize: 12, fontWeight: '600', marginTop: 2 },
   warn: {
     fontSize: 12,
     color: colors.warning,

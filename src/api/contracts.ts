@@ -1,4 +1,4 @@
-import { ContractDto, ContractStatus } from '@/types';
+import { CancellationPreviewDto, ContractDto, ContractStatus, PlanType } from '@/types';
 import { apiFetch } from './client';
 
 /** [Responsável] Lista contratos, opcionalmente filtrando por status. */
@@ -12,25 +12,41 @@ export function getContract(token: string, id: number): Promise<ContractDto> {
   return apiFetch<ContractDto>(`/api/guardians/me/contracts/${id}`, { token });
 }
 
-/** [Responsável] Assina o contrato com o meio de pagamento escolhido. */
-export function signContract(token: string, id: number, paymentMethodId: number): Promise<ContractDto> {
+/** [Responsável] Assina o contrato com o plano e o meio de pagamento escolhidos. */
+export function signContract(
+  token: string,
+  id: number,
+  paymentMethodId: number,
+  planType: PlanType,
+): Promise<ContractDto> {
   return apiFetch<ContractDto>(`/api/guardians/me/contracts/${id}/sign`, {
     method: 'POST',
-    body: { paymentMethodId },
+    body: { paymentMethodId, planType },
     token,
   });
 }
 
-/** [Responsável] Cancela o contrato — exige avaliação obrigatória do transportador. */
+/** [Responsável] Prévia da rescisão: multa (fidelidade) ou reembolso (anual). */
+export function getCancellationPreview(token: string, id: number): Promise<CancellationPreviewDto> {
+  return apiFetch<CancellationPreviewDto>(`/api/guardians/me/contracts/${id}/cancellation-preview`, {
+    token,
+  });
+}
+
+/**
+ * [Responsável] Cancela (rescinde) o contrato — exige avaliação obrigatória.
+ * {@code paymentMethodId} é necessário quando há multa de fidelidade a pagar.
+ */
 export function cancelContract(
   token: string,
   id: number,
   rating: number,
   comment?: string,
+  paymentMethodId?: number | null,
 ): Promise<ContractDto> {
   return apiFetch<ContractDto>(`/api/guardians/me/contracts/${id}/cancel`, {
     method: 'POST',
-    body: { rating, comment: comment?.trim() || null },
+    body: { rating, comment: comment?.trim() || null, paymentMethodId: paymentMethodId ?? null },
     token,
   });
 }
