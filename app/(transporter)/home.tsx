@@ -143,7 +143,7 @@ export default function TransporterHomeScreen() {
               )}
               <View style={styles.requestActions}>
                 <Button
-                  label="Liberar contrato"
+                  label="Liberar"
                   icon="document-text-outline"
                   onPress={() => handleRelease(req.id)}
                   loading={busyId === req.id}

@@ -113,6 +113,14 @@ export interface ApiRouteStop {
   position: number;
   latitude: number | null;
   longitude: number | null;
+  /** Distância (km) do ponto anterior da rota; null quando não há coordenada. */
+  legDistanceKm?: number | null;
+  /** Distância (km) acumulada desde a partida. */
+  cumulativeKm?: number | null;
+  /** Minutos previstos desde a partida até esta parada. */
+  etaMinutes?: number | null;
+  /** Horário previsto de chegada ("HH:mm"). */
+  etaClock?: string | null;
 }
 
 // ----- Avisos -----

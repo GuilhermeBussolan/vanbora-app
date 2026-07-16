@@ -66,7 +66,12 @@ export function Button({
           {icon ? (
             <Ionicons name={icon} size={18} color={textColor} style={styles.icon} />
           ) : null}
-          <Text style={[typography.button, { color: textColor }]}>{label}</Text>
+          <Text
+            style={[typography.button, styles.label, { color: textColor }]}
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
         </View>
       )}
     </Pressable>
@@ -109,5 +114,9 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   },
   icon: {
     marginRight: spacing.sm,
+  },
+  // Permite o texto encolher dentro de botões estreitos (evita quebra em 2 linhas).
+  label: {
+    flexShrink: 1,
   },
 });

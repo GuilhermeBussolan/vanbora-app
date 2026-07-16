@@ -8,6 +8,7 @@ import { useAppState } from '@/context/AppState';
 import { useLocationBroadcast } from '@/hooks/useLocationBroadcast';
 import { getLocationSharing, getMyRoute, optimizeMyRoute } from '@/api/tracking';
 import { describeNextWindow } from '@/lib/locationSchedule';
+import { openRouteInMaps, openStopInMaps } from '@/lib/navigation';
 import { ApiRouteStop, LocationSharingDto } from '@/types';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
@@ -91,8 +92,16 @@ export default function RoutesScreen() {
     }
   }
 
+  async function navigateRoute() {
+    const ok = await openRouteInMaps(stops, current);
+    if (!ok) setError('Não foi possível abrir o app de mapas para navegar.');
+  }
+
   const points = stops.map(toMapPoint).filter((p): p is MapPoint => p !== null);
   const hasGeo = points.length > 0;
+  const schoolStop = stops.find((s) => s.status === 'SCHOOL');
+  const totalKm = schoolStop?.cumulativeKm ?? null;
+  const schoolEta = schoolStop?.etaClock ?? null;
 
   return (
     <Screen>
@@ -123,6 +132,35 @@ export default function RoutesScreen() {
           style={styles.optimizeBtn}
         />
       </View>
+
+      {hasGeo ? (
+        <Card style={styles.summaryCard}>
+          <View style={styles.summaryItem}>
+            <Ionicons name="flag-outline" size={16} color={colors.brandDark} />
+            <View>
+              <Text style={styles.summaryLabel}>Chegada na escola</Text>
+              <Text style={styles.summaryValue}>{schoolEta ? `~${schoolEta}` : '—'}</Text>
+            </View>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <Ionicons name="speedometer-outline" size={16} color={colors.brandDark} />
+            <View>
+              <Text style={styles.summaryLabel}>Distância total</Text>
+              <Text style={styles.summaryValue}>{totalKm != null ? `${totalKm} km` : '—'}</Text>
+            </View>
+          </View>
+        </Card>
+      ) : null}
+
+      {hasGeo ? (
+        <Button
+          label="Navegar rota (Maps)"
+          icon="navigate-circle-outline"
+          onPress={navigateRoute}
+          style={styles.navigateBtn}
+        />
+      ) : null}
 
       <Pressable onPress={() => router.push('/location-sharing')}>
         <Card style={styles.shareCard}>
@@ -176,8 +214,29 @@ export default function RoutesScreen() {
                 <View style={styles.stopInfo}>
                   <Text style={styles.stopName}>{stop.label}</Text>
                   <Text style={styles.stopAddress}>{stop.address}</Text>
+                  {stop.etaClock ? (
+                    <View style={styles.etaRow}>
+                      <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                      <Text style={styles.etaText}>
+                        chegada ~{stop.etaClock}
+                        {stop.legDistanceKm != null && index > 0 ? ` • +${stop.legDistanceKm} km` : ''}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
-                <Badge label={badge.label} tone={badge.tone} />
+                <View style={styles.stopRight}>
+                  <Badge label={badge.label} tone={badge.tone} />
+                  {stop.latitude != null && stop.longitude != null ? (
+                    <Pressable
+                      onPress={() => openStopInMaps(stop)}
+                      hitSlop={8}
+                      style={styles.stopNavBtn}
+                      accessibilityLabel={`Navegar até ${stop.label}`}
+                    >
+                      <Ionicons name="navigate-outline" size={16} color={colors.brandDark} />
+                    </Pressable>
+                  ) : null}
+                </View>
               </Card>
             );
           })}
@@ -223,6 +282,37 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     right: spacing.md,
     height: 40,
     paddingHorizontal: spacing.lg,
+  },
+  summaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  summaryItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  summaryDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.md,
+  },
+  summaryLabel: { fontSize: 11, color: colors.textSecondary },
+  summaryValue: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
+  navigateBtn: { marginBottom: spacing.lg },
+  etaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  etaText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+  stopRight: { alignItems: 'flex-end', gap: spacing.sm },
+  stopNavBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brandSoft,
   },
   shareCard: {
     flexDirection: 'row',
