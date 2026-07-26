@@ -15,12 +15,18 @@ export function getSearchFilters(token: string): Promise<SearchFiltersDto> {
 /** Busca de transportadores por escola/bairro, ordenável por preço ou avaliação. */
 export function searchTransporters(
   token: string,
-  params: { school?: string; neighborhood?: string; sort?: 'price' | 'rating' } = {},
+  params: {
+    school?: string;
+    neighborhood?: string;
+    sort?: 'price' | 'rating';
+    dir?: 'asc' | 'desc';
+  } = {},
 ): Promise<TransporterSummaryDto[]> {
   const qs = new URLSearchParams();
   if (params.school) qs.set('school', params.school);
   if (params.neighborhood) qs.set('neighborhood', params.neighborhood);
   if (params.sort) qs.set('sort', params.sort);
+  if (params.dir) qs.set('dir', params.dir);
   const suffix = qs.toString() ? `?${qs}` : '';
   return apiFetch<TransporterSummaryDto[]>(`/api/transporters${suffix}`, { token });
 }
@@ -91,6 +97,15 @@ export function updateContractTemplate(
   return apiFetch<TransporterProfileDto>('/api/transporters/me/contract-template', {
     method: 'PUT',
     body: { template },
+    token,
+  });
+}
+
+/** [Transportador] Atualiza a descrição/biografia. */
+export function updateTransporterBio(token: string, bio: string): Promise<TransporterProfileDto> {
+  return apiFetch<TransporterProfileDto>('/api/transporters/me/bio', {
+    method: 'PUT',
+    body: { bio },
     token,
   });
 }

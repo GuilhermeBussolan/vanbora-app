@@ -131,6 +131,15 @@ export default function PublicTransporterProfile() {
         ) : null}
       </View>
 
+      {transporter.bio?.trim() ? (
+        <>
+          <SectionTitle title="Sobre" style={styles.section} />
+          <Card>
+            <Text style={styles.bioText}>{transporter.bio}</Text>
+          </Card>
+        </>
+      ) : null}
+
       <SectionTitle title="Equipe (Ajudantes)" style={styles.section} />
       {transporter.helpers.length === 0 ? (
         <Text style={styles.empty}>Este transportador trabalha sem ajudantes cadastrados.</Text>
@@ -237,6 +246,7 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     justifyContent: 'center',
   },
   facLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  bioText: { fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
   reviews: { gap: spacing.md },
   reviewHead: {
     flexDirection: 'row',

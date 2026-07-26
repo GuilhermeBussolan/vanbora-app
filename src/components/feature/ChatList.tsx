@@ -46,7 +46,9 @@ export function ChatList() {
               key={chat.id}
               style={styles.row}
               onPress={() =>
-                router.push(`/chat/${chat.id}?name=${encodeURIComponent(chat.name)}`)
+                router.push(
+                  `/chat/${chat.id}?name=${encodeURIComponent(chat.name)}&transporterId=${chat.transporterId}`,
+                )
               }
             >
               <Avatar name={chat.name} size={48} />

@@ -1,5 +1,14 @@
 import { DependentDto } from '@/types';
-import { apiFetch } from './client';
+import { apiFetch, apiUpload, UploadFile } from './client';
+
+/** [Responsável] Envia a foto de um dependente. */
+export function uploadDependentPhoto(
+  token: string,
+  id: number,
+  file: UploadFile,
+): Promise<DependentDto> {
+  return apiUpload<DependentDto>(`/api/guardians/me/dependents/${id}/photo`, file, token);
+}
 
 /** [Responsável] Lista os dependentes. */
 export function listDependents(token: string): Promise<DependentDto[]> {

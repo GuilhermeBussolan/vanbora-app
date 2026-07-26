@@ -1,10 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AppHeader, Button, Card, Screen } from '@/components';
+import { AppHeader, Card, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
-import { getConsentStatus, revokeConsent } from '@/api/account';
+import { getConsentStatus } from '@/api/account';
 import { ConsentStatusDto } from '@/types';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
@@ -24,7 +24,6 @@ const RIGHTS = [
   'Acessar os dados que mantemos sobre você',
   'Corrigir dados incompletos ou desatualizados',
   'Solicitar a portabilidade dos seus dados',
-  'Revogar o consentimento a qualquer momento',
   'Solicitar a exclusão dos seus dados',
 ];
 
@@ -34,7 +33,6 @@ export default function PrivacyDataScreen() {
   const { token } = useAppState();
   const [status, setStatus] = useState<ConsentStatusDto | null>(null);
   const [loading, setLoading] = useState(true);
-  const [revoking, setRevoking] = useState(false);
 
   const load = useCallback(() => {
     let active = true;
@@ -50,31 +48,6 @@ export default function PrivacyDataScreen() {
   }, [token]);
 
   useFocusEffect(load);
-
-  function confirmRevoke() {
-    Alert.alert(
-      'Revogar consentimento',
-      'Ao revogar, deixamos de tratar seus dados com base no seu consentimento. Como os dados são necessários para operar o serviço, sua conta poderá ser desativada. Você pode solicitar a exclusão completa pelo e-mail vanbora2026@gmail.com. Deseja continuar?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Revogar', style: 'destructive', onPress: doRevoke },
-      ],
-    );
-  }
-
-  async function doRevoke() {
-    if (!token) return;
-    setRevoking(true);
-    try {
-      const updated = await revokeConsent(token);
-      setStatus(updated);
-      Alert.alert('Consentimento revogado', 'Sua revogação foi registrada com data e hora.');
-    } catch (err: any) {
-      Alert.alert('Erro', err?.message ?? 'Falha ao revogar o consentimento.');
-    } finally {
-      setRevoking(false);
-    }
-  }
 
   return (
     <Screen>
@@ -129,20 +102,9 @@ export default function PrivacyDataScreen() {
             </Pressable>
           </View>
 
-          {status?.granted ? (
-            <Button
-              label="Revogar consentimento"
-              variant="outline"
-              icon="close-circle-outline"
-              onPress={confirmRevoke}
-              loading={revoking}
-              style={styles.revokeBtn}
-            />
-          ) : (
-            <Text style={styles.revokedNote}>
-              Para solicitar a exclusão completa dos seus dados, escreva para vanbora2026@gmail.com.
-            </Text>
-          )}
+          <Text style={styles.revokedNote}>
+            Para solicitar a exclusão completa dos seus dados, escreva para vanbora2026@gmail.com.
+          </Text>
         </>
       )}
     </Screen>
@@ -174,7 +136,6 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
       backgroundColor: colors.white,
     },
     docText: { flex: 1, fontSize: 14, fontWeight: '500', color: colors.textPrimary },
-    revokeBtn: { marginTop: spacing.xl, borderColor: colors.danger },
     revokedNote: {
       fontSize: 12,
       lineHeight: 18,

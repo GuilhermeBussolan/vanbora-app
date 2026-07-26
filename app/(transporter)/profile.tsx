@@ -101,6 +101,20 @@ export default function TransporterProfileScreen() {
       />
 
       <View style={[styles.sectionHeader, styles.section]}>
+        <SectionTitle title="Descrição" />
+        <Pressable onPress={() => router.push('/edit-bio')} hitSlop={8}>
+          <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
+        </Pressable>
+      </View>
+      <Card>
+        <Text style={profile?.bio?.trim() ? styles.bioText : styles.bioPlaceholder}>
+          {profile?.bio?.trim()
+            ? profile.bio
+            : 'Adicione uma descrição sobre você e seu serviço — os responsáveis veem no seu perfil.'}
+        </Text>
+      </Card>
+
+      <View style={[styles.sectionHeader, styles.section]}>
         <SectionTitle title="Preço e Propostas" />
         <Pressable onPress={() => router.push('/edit-pricing')} hitSlop={8}>
           <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
@@ -244,6 +258,8 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   profileInfo: { flex: 1, gap: 2 },
   meta: { fontSize: 12, color: colors.textSecondary },
   studentsBtn: { marginBottom: spacing.sm },
+  bioText: { fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
+  bioPlaceholder: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, fontStyle: 'italic' },
   section: { marginTop: spacing.xl },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pricingCard: { marginTop: spacing.md, gap: spacing.sm },

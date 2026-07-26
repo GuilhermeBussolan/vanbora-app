@@ -1,10 +1,13 @@
 import React, { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar, Button, Card, Screen, SectionTitle } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { listContracts } from '@/api/contracts';
+import { getMyGuardianProfile, GuardianProfileDto, uploadGuardianPhoto } from '@/api/guardian';
+import { mediaUrl } from '@/api/client';
+import { pickImage } from '@/lib/imagePicker';
 import { ContractDto } from '@/types';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
@@ -26,13 +29,18 @@ export default function GuardianProfileScreen() {
   const { user, token, logout, dependents, selectedDependentId, selectDependent, refreshDependents } =
     useAppState();
   const [activeContract, setActiveContract] = useState<ContractDto | null>(null);
+  const [profile, setProfile] = useState<GuardianProfileDto | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  // Atualiza dependentes e o contrato ativo do dependente selecionado ao focar.
+  // Atualiza dependentes, o perfil e o contrato ativo do dependente selecionado ao focar.
   useFocusEffect(
     useCallback(() => {
       let active = true;
       if (token) {
         refreshDependents();
+        getMyGuardianProfile(token)
+          .then((p) => active && setProfile(p))
+          .catch(() => active && setProfile(null));
         listContracts(token, 'ACTIVE')
           .then(
             (list) =>
@@ -47,6 +55,20 @@ export default function GuardianProfileScreen() {
     }, [token, selectedDependentId, refreshDependents]),
   );
 
+  async function handleChangePhoto() {
+    if (!token) return;
+    const file = await pickImage();
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      setProfile(await uploadGuardianPhoto(token, file));
+    } catch (err: any) {
+      Alert.alert('Erro', err?.message ?? 'Falha ao enviar a foto.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
+
   function handleLogout() {
     logout();
     router.replace('/(auth)/welcome');
@@ -57,12 +79,35 @@ export default function GuardianProfileScreen() {
       <Text style={[typography.screenTitle, styles.title]}>Meu Perfil</Text>
 
       <View style={styles.profileRow}>
-        <Avatar name={user?.name ?? 'Responsável'} size={52} />
+        <Pressable onPress={handleChangePhoto} style={styles.photoWrap}>
+          <Avatar name={user?.name ?? 'Responsável'} size={56} uri={mediaUrl(profile?.photoUrl)} />
+          <View style={styles.photoBadge}>
+            {uploadingPhoto ? (
+              <ActivityIndicator size="small" color={colors.textOnBrand} />
+            ) : (
+              <Ionicons name="camera" size={14} color={colors.textOnBrand} />
+            )}
+          </View>
+        </Pressable>
         <View style={styles.profileInfo}>
           <Text style={typography.cardTitle}>{user?.name ?? 'Responsável'}</Text>
           <Text style={styles.email}>{user?.email ?? '—'}</Text>
         </View>
       </View>
+
+      <View style={[styles.sectionHeader, styles.section]}>
+        <SectionTitle title="Descrição" />
+        <Pressable onPress={() => router.push('/edit-bio')} hitSlop={8}>
+          <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
+        </Pressable>
+      </View>
+      <Card>
+        <Text style={profile?.bio?.trim() ? styles.bioText : styles.bioPlaceholder}>
+          {profile?.bio?.trim()
+            ? profile.bio
+            : 'Adicione uma descrição — o transportador vê ao receber sua solicitação.'}
+        </Text>
+      </Card>
 
       <SectionTitle title="Meus Dependentes" style={styles.section} />
       {dependents.length > 1 ? (
@@ -79,7 +124,7 @@ export default function GuardianProfileScreen() {
             return (
               <Pressable key={dep.id} onPress={() => selectDependent(dep.id)}>
                 <Card style={StyleSheet.flatten([styles.dependentCard, sel && styles.dependentCardSel])}>
-                  <Avatar name={dep.name} size={40} tone="neutral" />
+                  <Avatar name={dep.name} size={40} tone="neutral" uri={mediaUrl(dep.photoUrl)} />
                   <View style={styles.dependentInfo}>
                     <Text style={styles.dependentName}>{dep.name}</Text>
                     <Text style={styles.dependentSchool}>{dep.school}</Text>
@@ -93,7 +138,12 @@ export default function GuardianProfileScreen() {
                     onPress={() =>
                       router.push({
                         pathname: '/edit-dependent',
-                        params: { id: String(dep.id), name: dep.name, school: dep.school },
+                        params: {
+                          id: String(dep.id),
+                          name: dep.name,
+                          school: dep.school,
+                          photoUrl: dep.photoUrl ?? '',
+                        },
                       })
                     }
                   >
@@ -190,6 +240,23 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     gap: spacing.md,
     marginBottom: spacing.xl,
   },
+  photoWrap: { position: 'relative' },
+  photoBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  bioText: { fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
+  bioPlaceholder: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, fontStyle: 'italic' },
   profileInfo: {
     gap: 2,
   },

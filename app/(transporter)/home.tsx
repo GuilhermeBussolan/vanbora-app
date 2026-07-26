@@ -106,7 +106,14 @@ export default function TransporterHomeScreen() {
         ) : (
           requests.map((req) => (
             <Card key={req.id}>
-              <Text style={styles.requestName}>{req.guardianName}</Text>
+              <Pressable
+                onPress={() => router.push(`/guardian-profile/${req.id}`)}
+                style={styles.guardianRow}
+                hitSlop={6}
+              >
+                <Text style={styles.requestName}>{req.guardianName}</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
               <Text style={styles.requestDetail}>Aluno: {req.studentName}</Text>
               <View style={styles.requestMeta}>
                 <View style={styles.metaItem}>
@@ -302,6 +309,11 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     fontSize: 13,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  guardianRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   requestName: {
     fontSize: 15,

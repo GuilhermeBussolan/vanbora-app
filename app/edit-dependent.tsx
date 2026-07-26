@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AppHeader, Button, Input, Screen, SchoolPicker } from '@/components';
+import { AppHeader, Avatar, Button, Input, Screen, SchoolPicker } from '@/components';
 import { useAppState } from '@/context/AppState';
-import { deleteDependent, updateDependent } from '@/api/dependents';
+import { deleteDependent, updateDependent, uploadDependentPhoto } from '@/api/dependents';
+import { mediaUrl } from '@/api/client';
+import { pickImage } from '@/lib/imagePicker';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
 
@@ -12,16 +14,35 @@ import type { ThemeColors, Typography } from '@/theme';
 export default function EditDependentScreen() {
   const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token, refreshDependents } = useAppState();
-  const params = useLocalSearchParams<{ id?: string; name?: string; school?: string }>();
+  const params = useLocalSearchParams<{ id?: string; name?: string; school?: string; photoUrl?: string }>();
   const id = Number(params.id);
 
   const [name, setName] = useState(params.name ?? '');
   const [schoolName, setSchoolName] = useState(params.school ?? '');
   const [schoolId, setSchoolId] = useState<number | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(params.photoUrl || null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleChangePhoto() {
+    if (!token) return;
+    const file = await pickImage();
+    if (!file) return;
+    setUploadingPhoto(true);
+    setError(null);
+    try {
+      const updated = await uploadDependentPhoto(token, id, file);
+      setPhotoUrl(updated.photoUrl);
+      await refreshDependents();
+    } catch (e: any) {
+      setError(e?.message ?? 'Falha ao enviar a foto.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
 
   async function handleSave() {
     if (!name.trim() || !schoolName.trim()) {
@@ -74,6 +95,19 @@ export default function EditDependentScreen() {
       <Text style={[typography.title, styles.title]}>Editar Dependente</Text>
       <Text style={styles.subtitle}>Atualize os dados do aluno.</Text>
 
+      <View style={styles.photoRow}>
+        <Pressable onPress={handleChangePhoto} style={styles.photoWrap}>
+          <Avatar name={name || 'Aluno'} size={72} tone="neutral" uri={mediaUrl(photoUrl)} />
+          <View style={styles.photoBadge}>
+            {uploadingPhoto ? (
+              <ActivityIndicator size="small" color={colors.textOnBrand} />
+            ) : (
+              <Ionicons name="camera" size={15} color={colors.textOnBrand} />
+            )}
+          </View>
+        </Pressable>
+      </View>
+
       <Input
         icon="person-outline"
         placeholder="Nome do aluno"
@@ -117,6 +151,21 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
       color: colors.textSecondary,
       marginTop: spacing.xs,
       marginBottom: spacing.xl,
+    },
+    photoRow: { alignItems: 'center', marginBottom: spacing.lg },
+    photoWrap: { position: 'relative' },
+    photoBadge: {
+      position: 'absolute',
+      right: -2,
+      bottom: -2,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: colors.brand,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: colors.white,
     },
     field: { marginBottom: spacing.md },
     fieldLabel: {

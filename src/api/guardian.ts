@@ -1,5 +1,5 @@
 /** Painel inicial do responsável (`GET /api/guardians/me/dashboard`). */
-import { apiFetch } from './client';
+import { apiFetch, apiUpload, UploadFile } from './client';
 
 export interface DayAttendance {
   day: string;
@@ -144,12 +144,14 @@ export interface GuardianProfileDto {
   name: string;
   email: string;
   phone: string;
+  photoUrl: string | null;
+  bio: string | null;
   city: string | null;
   neighborhood: string | null;
   pickup: AddressDto;
   delivery: AddressDto;
   deliverySameAsPickup: boolean;
-  dependents: { id: number; name: string; school: string }[];
+  dependents: { id: number; name: string; school: string; photoUrl: string | null }[];
 }
 
 export interface AddressInputBody {
@@ -162,6 +164,16 @@ export interface AddressInputBody {
 
 export function getMyGuardianProfile(token: string): Promise<GuardianProfileDto> {
   return apiFetch<GuardianProfileDto>('/api/guardians/me', { token });
+}
+
+/** [Responsável] Atualiza a descrição/biografia. */
+export function updateGuardianBio(token: string, bio: string): Promise<GuardianProfileDto> {
+  return apiFetch<GuardianProfileDto>('/api/guardians/me/bio', { method: 'PUT', body: { bio }, token });
+}
+
+/** [Responsável] Envia a foto de perfil. */
+export function uploadGuardianPhoto(token: string, file: UploadFile): Promise<GuardianProfileDto> {
+  return apiUpload<GuardianProfileDto>('/api/guardians/me/photo', file, token);
 }
 
 export function updateAddress(

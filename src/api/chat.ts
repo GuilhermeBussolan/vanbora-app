@@ -1,5 +1,5 @@
 import { ConversationDto, MessageDto } from '@/types';
-import { apiFetch } from './client';
+import { apiFetch, apiUpload, UploadFile } from './client';
 
 /** Lista as conversas do usuário autenticado. */
 export function listConversations(token: string): Promise<ConversationDto[]> {
@@ -31,6 +31,15 @@ export function sendMessage(
     body: { text },
     token,
   });
+}
+
+/** Envia uma imagem na conversa (multipart). */
+export function sendImageMessage(
+  token: string,
+  conversationId: number,
+  file: UploadFile,
+): Promise<MessageDto> {
+  return apiUpload<MessageDto>(`/api/conversations/${conversationId}/messages/image`, file, token);
 }
 
 /** Marca a conversa como lida (zera as não lidas do usuário). */

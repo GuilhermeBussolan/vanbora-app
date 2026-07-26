@@ -132,6 +132,12 @@ export default function GuardianHomeScreen() {
       ) : (
         <EmptyDashboard dependentName={dashboard?.studentName ?? null} />
       )}
+
+      <Pressable style={styles.cancelledLink} onPress={() => router.push('/cancelled-contracts')}>
+        <Ionicons name="close-circle-outline" size={16} color={colors.textSecondary} />
+        <Text style={styles.cancelledLinkText}>Ver contratos cancelados</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+      </Pressable>
     </Screen>
   );
 }
@@ -555,6 +561,19 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     alignItems: 'center',
     gap: spacing.md,
     marginBottom: spacing.lg,
+  },
+  cancelledLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    justifyContent: 'center',
+    marginTop: spacing.xxl,
+    paddingVertical: spacing.md,
+  },
+  cancelledLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   greetingFlex: {
     flex: 1,

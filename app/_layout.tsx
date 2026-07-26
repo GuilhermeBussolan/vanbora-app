@@ -61,6 +61,11 @@ function ThemedStack() {
         <Stack.Screen name="edit-service-area" />
         <Stack.Screen name="edit-pricing" />
         <Stack.Screen name="location-sharing" />
+        <Stack.Screen name="edit-bio" />
+        <Stack.Screen name="guardian-profile/[id]" />
+        <Stack.Screen name="cancelled-contracts" />
+        <Stack.Screen name="finance-detail" />
+        <Stack.Screen name="add-revenue" />
         <Stack.Screen name="hire/[id]" />
         <Stack.Screen name="add-expense" />
         <Stack.Screen name="add-fuel" />

@@ -128,6 +128,26 @@ export default function TrackingScreen() {
               </View>
             ) : null}
 
+            {live && tracking?.etaToSchoolClock ? (
+              <View style={styles.etaBox}>
+                {tracking.goingToday && tracking.etaToStudentClock ? (
+                  <View style={styles.etaRow}>
+                    <Ionicons name="walk-outline" size={16} color={colors.brandDark} />
+                    <Text style={styles.etaText}>
+                      No embarque de {tracking.studentName?.split(' ')[0] ?? 'seu filho(a)'} ~
+                      {tracking.etaToStudentClock}
+                    </Text>
+                  </View>
+                ) : null}
+                <View style={styles.etaRow}>
+                  <Ionicons name="school-outline" size={16} color={colors.brandDark} />
+                  <Text style={styles.etaText}>
+                    Chegada prevista na escola ~{tracking.etaToSchoolClock}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
             <View style={styles.statusRow}>
               <Ionicons
                 name={live ? 'navigate-circle' : 'time-outline'}
@@ -183,6 +203,16 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     fontWeight: '700',
     color: colors.textPrimary,
   },
+  etaBox: {
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandSoft,
+  },
+  etaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  etaText: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,6 +1,30 @@
 import { HireRequestDto } from '@/types';
 import { apiFetch } from './client';
 
+/** Perfil do responsável exibido ao transportador ao abrir uma solicitação. */
+export interface GuardianForTransporterDto {
+  guardianId: number;
+  name: string;
+  email: string;
+  phone: string;
+  photoUrl: string | null;
+  bio: string | null;
+  /** ISO de quando o responsável entrou no app. */
+  memberSince: string;
+  pickupNeighborhood: string | null;
+  studentName: string;
+  dropoffSchool: string;
+  dependentsCount: number;
+}
+
+/** [Transportador] Perfil do responsável de uma solicitação recebida. */
+export function getGuardianForRequest(
+  token: string,
+  hireRequestId: number,
+): Promise<GuardianForTransporterDto> {
+  return apiFetch<GuardianForTransporterDto>(`/api/hire-requests/${hireRequestId}/guardian`, { token });
+}
+
 /** [Responsável] Envia uma solicitação de contratação (com proposta de valor opcional). */
 export function createHireRequest(
   token: string,

@@ -198,14 +198,21 @@ export interface ConversationDto {
   lastMessage: string;
   time: string;
   unread: number;
+  /** Id do perfil do transportador (abrir o perfil pelo chat). */
+  transporterId: number;
 }
 
 /** Mensagem do histórico (REST) — `fromMe` já calculado pelo backend. */
+export type MessageType = 'TEXT' | 'IMAGE';
+
 export interface MessageDto {
   id: number;
   text: string;
   time: string;
   fromMe: boolean;
+  type: MessageType;
+  /** URL da imagem quando type=IMAGE (relativa; use mediaUrl()). */
+  mediaUrl: string | null;
 }
 
 /** Mensagem difundida pelo WebSocket — neutra; o cliente calcula `fromMe`. */
@@ -216,6 +223,8 @@ export interface ChatBroadcastDto {
   time: string;
   senderUserId: number;
   senderName: string;
+  type: MessageType;
+  mediaUrl: string | null;
 }
 
 // ----- Perfil -----
@@ -225,6 +234,7 @@ export interface DependentDto {
   id: number;
   name: string;
   school: string;
+  photoUrl: string | null;
 }
 
 /** Ajudante/monitor do transportador. */
@@ -271,6 +281,8 @@ export interface TransporterProfileDto {
   helpers: HelperDto[];
   /** Modelo de contrato (texto) do transportador; null usa o texto padrão. */
   contractTemplate: string | null;
+  /** Descrição/biografia do transportador. */
+  bio: string | null;
 }
 
 /** Janela agendada de compartilhamento (dayOfWeek ISO 1=seg…7=dom; horas "HH:mm"). */
@@ -321,6 +333,8 @@ export interface TransporterSummaryDto {
   schools: string[];
   neighborhoods: string[];
   monthlyFee: number;
+  /** true = atende a escola/bairro buscado (seção "perto de você"). */
+  nearby: boolean;
 }
 
 /** Avaliação exibida no perfil público. */
@@ -336,6 +350,7 @@ export interface TransporterDetailDto {
   id: number;
   name: string;
   photoUrl: string | null;
+  bio: string | null;
   phone: string;
   rating: number;
   reviewsCount: number;
@@ -436,6 +451,10 @@ export interface GuardianTracking {
   myOrder: number | null;
   totalStops: number | null;
   goingToday: boolean;
+  etaToStudentMinutes: number | null;
+  etaToStudentClock: string | null;
+  etaToSchoolMinutes: number | null;
+  etaToSchoolClock: string | null;
 }
 
 export interface Helper {

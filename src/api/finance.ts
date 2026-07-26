@@ -51,6 +51,41 @@ export interface FinanceSummary {
   monthlyRevenue: MonthlyRevenue[];
 }
 
+/** Item do detalhamento (pendente/vencido/recebido) por aluno. */
+export interface FinanceBreakdownItem {
+  student: string;
+  referenceMonth: string;
+  amount: number;
+  date: string | null;
+  status: string;
+}
+
+export type BreakdownType = 'pending' | 'overdue' | 'received';
+
+/** Detalhamento por aluno para os tiles clicáveis. */
+export function getFinanceBreakdown(
+  token: string,
+  type: BreakdownType,
+): Promise<FinanceBreakdownItem[]> {
+  return apiFetch<FinanceBreakdownItem[]>(
+    `/api/transporters/me/finance/breakdown?type=${type}`,
+    { token },
+  );
+}
+
+/** Lança/atualiza a receita manual de um mês (yyyy-MM). */
+export function setManualRevenue(
+  token: string,
+  referenceMonth: string,
+  amount: number,
+): Promise<void> {
+  return apiFetch<void>('/api/transporters/me/finance/revenue', {
+    method: 'POST',
+    body: { referenceMonth, amount },
+    token,
+  });
+}
+
 export interface ExpenseDto {
   id: number;
   date: string;

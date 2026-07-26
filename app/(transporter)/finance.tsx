@@ -101,6 +101,10 @@ export default function FinanceScreen() {
     }
   }
 
+  function openDetail(type: string, label: string) {
+    router.push({ pathname: '/finance-detail', params: { type, label } });
+  }
+
   if (loading) {
     return (
       <Screen>
@@ -139,33 +143,41 @@ export default function FinanceScreen() {
       </View>
 
       {/* Recebido no mês */}
-      <Card highlighted style={styles.receivedCard}>
-        <Text style={styles.receivedLabel}>Recebido este mês</Text>
-        <Text style={styles.receivedValue}>{formatCurrency(summary.received)}</Text>
-        <Text style={styles.balanceHint}>
-          Saldo (recebido − despesas): {formatCurrency(summary.balance)}
-        </Text>
-      </Card>
+      <Pressable onPress={() => openDetail('received', 'Recebido este mês')}>
+        <Card highlighted style={styles.receivedCard}>
+          <Text style={styles.receivedLabel}>Recebido este mês</Text>
+          <Text style={styles.receivedValue}>{formatCurrency(summary.received)}</Text>
+          <Text style={styles.balanceHint}>
+            Saldo (recebido − despesas): {formatCurrency(summary.balance)}
+          </Text>
+        </Card>
+      </Pressable>
 
       <View style={styles.summaryRow}>
-        <Card style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Pendente</Text>
-          <Text style={[styles.summaryValue, { color: colors.warning }]}>
-            {formatCurrency(summary.pending)}
-          </Text>
-        </Card>
-        <Card style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Vencido</Text>
-          <Text style={[styles.summaryValue, { color: colors.danger }]}>
-            {formatCurrency(summary.overdue)}
-          </Text>
-        </Card>
-        <Card style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Despesas</Text>
-          <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>
-            {formatCurrency(summary.expenses)}
-          </Text>
-        </Card>
+        <Pressable style={styles.summaryPressable} onPress={() => openDetail('pending', 'Pendente')}>
+          <Card style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Pendente</Text>
+            <Text style={[styles.summaryValue, { color: colors.warning }]}>
+              {formatCurrency(summary.pending)}
+            </Text>
+          </Card>
+        </Pressable>
+        <Pressable style={styles.summaryPressable} onPress={() => openDetail('overdue', 'Vencido')}>
+          <Card style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Vencido</Text>
+            <Text style={[styles.summaryValue, { color: colors.danger }]}>
+              {formatCurrency(summary.overdue)}
+            </Text>
+          </Card>
+        </Pressable>
+        <Pressable style={styles.summaryPressable} onPress={() => openDetail('expenses', 'Despesas')}>
+          <Card style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Despesas</Text>
+            <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>
+              {formatCurrency(summary.expenses)}
+            </Text>
+          </Card>
+        </Pressable>
       </View>
 
       {/* Meta mensal */}
@@ -201,7 +213,13 @@ export default function FinanceScreen() {
       </View>
 
       {/* Gráfico de receita */}
-      <Text style={[typography.sectionTitle, styles.blockTitle]}>Receita por mês</Text>
+      <View style={[styles.rowBetween, styles.blockTitle]}>
+        <Text style={typography.sectionTitle}>Receita por mês</Text>
+        <Pressable onPress={() => router.push('/add-revenue')} style={styles.addBtn} hitSlop={8}>
+          <Ionicons name="add" size={16} color={colors.textOnBrand} />
+          <Text style={styles.addBtnText}>Mês anterior</Text>
+        </Pressable>
+      </View>
       <Card style={styles.block}>
         {summary.monthlyRevenue.length > 0 ? (
           <View style={styles.chart}>
@@ -373,6 +391,7 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   receivedValue: { fontSize: 30, fontWeight: '800', color: colors.textOnBrand, marginTop: 4 },
   balanceHint: { fontSize: 12, color: colors.textOnBrand, opacity: 0.8, marginTop: 6 },
   summaryRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  summaryPressable: { flex: 1 },
   summaryCard: { flex: 1 },
   summaryLabel: { fontSize: 12, color: colors.textSecondary },
   summaryValue: { fontSize: 16, fontWeight: '800', marginTop: 4 },
