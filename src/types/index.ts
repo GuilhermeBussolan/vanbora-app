@@ -377,10 +377,10 @@ export interface PaymentMethodDto {
   last4: string;
 }
 
-/** Contrato exibido ao responsável. */
 /** Plano de contratação. */
 export type PlanType = 'MONTHLY' | 'ANNUAL' | 'INSTALLMENT';
 
+/** Contrato exibido ao responsável ou ao transportador. */
 export interface ContractDto {
   id: number;
   status: ContractStatus;
@@ -389,6 +389,7 @@ export interface ContractDto {
   dependentId: number;
   studentName: string;
   school: string;
+  guardianName: string;
   /** Plano mensal (valor de tabela). */
   monthlyFee: number;
   /** Plano anual total à vista; null = não ofertado. */
@@ -404,6 +405,8 @@ export interface ContractDto {
   /** Reembolso devolvido na rescisão (se houve). */
   refundAmount: number | null;
   signedAt: string | null;
+  /** Momento do cancelamento — só preenchido quando status === 'CANCELLED'. */
+  cancelledAt: string | null;
   /** Texto do contrato a ser lido e assinado (congelado na liberação). */
   contractText: string | null;
 }

@@ -90,11 +90,14 @@ export default function TransporterHomeScreen() {
         ))}
       </View>
 
-      <Card style={styles.churnCard}>
-        <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
-        <Text style={styles.churnLabel}>Contratos cancelados</Text>
-        <Text style={styles.churnValue}>{metrics?.cancelledContracts ?? 0}</Text>
-      </Card>
+      <Pressable onPress={() => router.push('/transporter-cancelled-contracts')}>
+        <Card style={styles.churnCard}>
+          <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
+          <Text style={styles.churnLabel}>Contratos cancelados</Text>
+          <Text style={styles.churnValue}>{metrics?.cancelledContracts ?? 0}</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        </Card>
+      </Pressable>
 
       <SectionTitle title="Solicitações de Contratação" style={styles.section} />
       {error ? <Text style={styles.error}>{error}</Text> : null}

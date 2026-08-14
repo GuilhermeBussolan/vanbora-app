@@ -35,6 +35,16 @@ export interface MonthlyRevenue {
   value: number;
 }
 
+/** Comparação com o período imediatamente anterior. *ChangePct null = sem base de comparação (período anterior zerado). */
+export interface PeriodComparison {
+  previousReceived: number;
+  receivedChangePct: number | null;
+  previousExpenses: number;
+  expensesChangePct: number | null;
+  previousKm: number;
+  kmChangePct: number | null;
+}
+
 export interface FinanceSummary {
   received: number;
   pending: number;
@@ -49,6 +59,23 @@ export interface FinanceSummary {
   goal: Goal;
   maintenance: Maintenance;
   monthlyRevenue: MonthlyRevenue[];
+  comparison: PeriodComparison;
+  /** Soma das mensalidades das matrículas ativas — quanto deve entrar por mês se nada mudar. */
+  recurringMonthlyRevenue: number;
+}
+
+/**
+ * Pagamento (vencido ou pendente) com dados do aluno/responsável pra cobrança.
+ * Dias de atraso/antecedência são calculados no app a partir de `dueDate`.
+ */
+export interface PaymentContact {
+  paymentId: number;
+  dependentId: number;
+  studentName: string;
+  guardianName: string;
+  guardianPhone: string;
+  amount: number;
+  dueDate: string;
 }
 
 /** Item do detalhamento (pendente/vencido/recebido) por aluno. */
@@ -168,6 +195,16 @@ export function getFinanceReport(token: string, from?: string, to?: string): Pro
 
 export function getSuggestions(token: string): Promise<SuggestionDto[]> {
   return apiFetch<SuggestionDto[]>('/api/transporters/me/finance/suggestions', { token });
+}
+
+/** Pagamentos vencidos — lista por trás do card "Vencido". */
+export function listOverduePayments(token: string): Promise<PaymentContact[]> {
+  return apiFetch<PaymentContact[]>('/api/transporters/me/finance/overdue', { token });
+}
+
+/** Pagamentos dentro do prazo — lista por trás do card "Pendente". */
+export function listPendingPayments(token: string): Promise<PaymentContact[]> {
+  return apiFetch<PaymentContact[]>('/api/transporters/me/finance/pending', { token });
 }
 
 // ----- Gastos -----

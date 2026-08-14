@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Screen } from '@/components';
+import { Badge, Card, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import {
   deleteExpense,
@@ -18,8 +18,12 @@ import {
   SuggestionDto,
 } from '@/api/finance';
 import { formatCurrency } from '@/data/mockData';
+import { defaultFinancePrefs, FinancePrefs, loadFinancePrefs, saveFinancePrefs } from '@/lib/financePrefs';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
+
+/** Altura fixa (px) da "trilha" das barras do gráfico — a barra nunca ultrapassa isso, mesmo a maior. */
+const BAR_TRACK_HEIGHT = 120;
 
 /** Painel financeiro do transportador: receitas, despesas, km, consumo, metas e sugestões. */
 export default function FinanceScreen() {
@@ -31,6 +35,19 @@ export default function FinanceScreen() {
   const [fuel, setFuel] = useState<FuelEntryDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [financePrefs, setFinancePrefs] = useState<FinancePrefs>(defaultFinancePrefs);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFinancePrefs().then(setFinancePrefs);
+    }, []),
+  );
+
+  function hideSuggestions() {
+    const next = { ...financePrefs, showSuggestions: false };
+    setFinancePrefs(next);
+    saveFinancePrefs(next);
+  }
 
   const load = useCallback(() => {
     if (!token) return;
@@ -130,8 +147,10 @@ export default function FinanceScreen() {
     );
   }
 
-  const { goal, maintenance, consumption } = summary;
+  const { goal, maintenance, consumption, comparison } = summary;
   const maxRevenue = Math.max(1, ...summary.monthlyRevenue.map((m) => m.value));
+  const maxCategory = Math.max(1, ...summary.expensesByCategory.map((c) => c.total));
+  const expensesBadge = changeBadge(comparison.expensesChangePct, false);
 
   return (
     <Screen>
@@ -150,21 +169,40 @@ export default function FinanceScreen() {
           <Text style={styles.balanceHint}>
             Saldo (recebido − despesas): {formatCurrency(summary.balance)}
           </Text>
+          <Text style={styles.balanceHint}>{comparisonText(comparison.receivedChangePct)}</Text>
         </Card>
       </Pressable>
 
+      {/* Receita recorrente mensal (projeção) */}
+      <Card style={styles.block}>
+        <View style={styles.rowBetween}>
+          <Text style={typography.sectionTitle}>Receita recorrente mensal</Text>
+          <Ionicons name="repeat-outline" size={18} color={colors.brandDark} />
+        </View>
+        <Text style={styles.mrrValue}>{formatCurrency(summary.recurringMonthlyRevenue)}</Text>
+        <Text style={styles.mrrHint}>
+          O que você deve receber todo mês com os alunos ativos hoje, mantendo tudo como está.
+        </Text>
+      </Card>
+
       <View style={styles.summaryRow}>
-        <Pressable style={styles.summaryPressable} onPress={() => openDetail('pending', 'Pendente')}>
+        <Pressable style={styles.summaryPressable} onPress={() => router.push('/pending-payments')}>
           <Card style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Pendente</Text>
+            <View style={styles.overdueTop}>
+              <Text style={styles.summaryLabel}>Pendente</Text>
+              <Ionicons name="chevron-forward" size={12} color={colors.textMuted} />
+            </View>
             <Text style={[styles.summaryValue, { color: colors.warning }]}>
               {formatCurrency(summary.pending)}
             </Text>
           </Card>
         </Pressable>
-        <Pressable style={styles.summaryPressable} onPress={() => openDetail('overdue', 'Vencido')}>
+        <Pressable style={styles.summaryPressable} onPress={() => router.push('/overdue-payments')}>
           <Card style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Vencido</Text>
+            <View style={styles.overdueTop}>
+              <Text style={styles.summaryLabel}>Vencido</Text>
+              <Ionicons name="chevron-forward" size={12} color={colors.textMuted} />
+            </View>
             <Text style={[styles.summaryValue, { color: colors.danger }]}>
               {formatCurrency(summary.overdue)}
             </Text>
@@ -176,6 +214,7 @@ export default function FinanceScreen() {
             <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>
               {formatCurrency(summary.expenses)}
             </Text>
+            <Badge label={expensesBadge.label} tone={expensesBadge.tone} />
           </Card>
         </Pressable>
       </View>
@@ -228,13 +267,15 @@ export default function FinanceScreen() {
               return (
                 <View key={m.label} style={styles.barColumn}>
                   <Text style={styles.barValue}>{compactCurrency(m.value)}</Text>
-                  <View
-                    style={[
-                      styles.bar,
-                      { height: `${(m.value / maxRevenue) * 100}%` },
-                      isLast ? styles.barActive : styles.barInactive,
-                    ]}
-                  />
+                  <View style={styles.barTrack}>
+                    <View
+                      style={[
+                        styles.bar,
+                        { height: Math.max(6, (m.value / maxRevenue) * BAR_TRACK_HEIGHT) },
+                        isLast ? styles.barActive : styles.barInactive,
+                      ]}
+                    />
+                  </View>
                   <Text style={styles.barLabel}>{m.label}</Text>
                 </View>
               );
@@ -244,6 +285,26 @@ export default function FinanceScreen() {
           <Text style={styles.emptyText}>Ainda não há receita registrada.</Text>
         )}
       </Card>
+
+      {/* Gastos por categoria */}
+      {summary.expensesByCategory.length > 0 ? (
+        <>
+          <Text style={[typography.sectionTitle, styles.blockTitle]}>Gastos por Categoria</Text>
+          <Card style={styles.block}>
+            {summary.expensesByCategory.map((c, i) => (
+              <View key={c.category} style={[styles.categoryRow, i === 0 && styles.categoryRowFirst]}>
+                <View style={styles.categoryHeader}>
+                  <Text style={styles.categoryName}>{c.category}</Text>
+                  <Text style={styles.categoryValue}>{formatCurrency(c.total)}</Text>
+                </View>
+                <View style={styles.categoryTrack}>
+                  <View style={[styles.categoryFill, { width: `${(c.total / maxCategory) * 100}%` }]} />
+                </View>
+              </View>
+            ))}
+          </Card>
+        </>
+      ) : null}
 
       {/* Consumo de combustível */}
       <Text style={[typography.sectionTitle, styles.blockTitle]}>Consumo de Combustível</Text>
@@ -279,9 +340,14 @@ export default function FinanceScreen() {
       ) : null}
 
       {/* Sugestões */}
-      {suggestions.length > 0 ? (
+      {financePrefs.showSuggestions && suggestions.length > 0 ? (
         <>
-          <Text style={[typography.sectionTitle, styles.blockTitle]}>Sugestões</Text>
+          <View style={[styles.rowBetween, styles.blockTitle]}>
+            <Text style={typography.sectionTitle}>Sugestões</Text>
+            <Pressable onPress={hideSuggestions} hitSlop={8}>
+              <Text style={styles.linkText}>Ocultar</Text>
+            </Pressable>
+          </View>
           {suggestions.map((s, i) => (
             <Card key={`${s.title}-${i}`} style={styles.suggestionCard}>
               <Ionicons name="bulb-outline" size={20} color={colors.brandDark} style={styles.suggestionIcon} />
@@ -377,6 +443,25 @@ function formatDate(iso: string): string {
   return `${d}/${m}`;
 }
 
+/** Texto do comparativo com o mês anterior (ex.: "+12% vs mês passado"). */
+function comparisonText(pct: number | null): string {
+  if (pct == null) return 'Sem dados do período anterior para comparar.';
+  const sign = pct >= 0 ? '+' : '';
+  return `${sign}${pct.toFixed(0)}% vs período anterior`;
+}
+
+/** Selo de variação: verde quando a mudança é boa, vermelho quando é ruim, neutro se não há base. */
+function changeBadge(
+  pct: number | null,
+  goodWhenUp: boolean,
+): { label: string; tone: 'success' | 'danger' | 'neutral' } {
+  if (pct == null) return { label: 'novo', tone: 'neutral' };
+  const isUp = pct >= 0;
+  const isGood = isUp === goodWhenUp;
+  const sign = isUp ? '+' : '';
+  return { label: `${sign}${pct.toFixed(0)}%`, tone: isGood ? 'success' : 'danger' };
+}
+
 const createStyles = (colors: ThemeColors, typography: Typography) =>
   StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.xxxl },
@@ -392,9 +477,24 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   balanceHint: { fontSize: 12, color: colors.textOnBrand, opacity: 0.8, marginTop: 6 },
   summaryRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   summaryPressable: { flex: 1 },
-  summaryCard: { flex: 1 },
+  summaryCard: { flex: 1, gap: 4 },
+  overdueTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   summaryLabel: { fontSize: 12, color: colors.textSecondary },
   summaryValue: { fontSize: 16, fontWeight: '800', marginTop: 4 },
+  mrrValue: { fontSize: 22, fontWeight: '800', color: colors.textPrimary, marginTop: spacing.sm },
+  mrrHint: { fontSize: 12, color: colors.textSecondary, marginTop: 4, lineHeight: 17 },
+  categoryRow: { marginTop: spacing.md },
+  categoryRowFirst: { marginTop: 0 },
+  categoryHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  categoryName: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
+  categoryValue: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
+  categoryTrack: {
+    height: 8,
+    backgroundColor: colors.border,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+  },
+  categoryFill: { height: '100%', backgroundColor: colors.brand, borderRadius: radius.sm },
   kmValue: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginTop: 4 },
   block: { marginTop: spacing.md },
   blockTitle: { marginTop: spacing.xl },
@@ -409,9 +509,10 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   },
   progressFill: { height: '100%', backgroundColor: colors.brand, borderRadius: radius.sm },
   goalText: { fontSize: 13, color: colors.textSecondary, marginTop: spacing.sm },
-  chart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 170 },
-  barColumn: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end', gap: spacing.xs },
-  bar: { width: 26, borderRadius: radius.sm, minHeight: 6 },
+  chart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  barColumn: { flex: 1, alignItems: 'center', gap: spacing.xs },
+  barTrack: { height: BAR_TRACK_HEIGHT, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  bar: { width: 26, borderRadius: radius.sm },
   barActive: { backgroundColor: colors.brand },
   barInactive: { backgroundColor: colors.border },
   barLabel: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
