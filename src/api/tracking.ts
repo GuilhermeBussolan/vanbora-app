@@ -1,4 +1,4 @@
-import { ApiRouteStop, GuardianTracking, LocationSharingDto } from '@/types';
+import { GuardianTracking, LocationSharingDto, RouteResponseDto } from '@/types';
 import { apiFetch } from './client';
 
 /** [Transportador] Configuração atual do compartilhamento (interruptor + janelas). */
@@ -18,28 +18,29 @@ export function updateLocationSharing(
   });
 }
 
-/** [Transportador] Paradas da rota do dia (com coordenadas). */
-export function getMyRoute(token: string): Promise<ApiRouteStop[]> {
-  return apiFetch<ApiRouteStop[]>('/api/transporters/me/route', { token });
+/** [Transportador] Paradas da rota do dia (com coordenadas) + trajeto seguindo ruas. */
+export function getMyRoute(token: string): Promise<RouteResponseDto> {
+  return apiFetch<RouteResponseDto>('/api/transporters/me/route', { token });
 }
 
 /** [Transportador] Recalcula a melhor ordem das paradas e devolve a rota reordenada. */
-export function optimizeMyRoute(token: string): Promise<ApiRouteStop[]> {
-  return apiFetch<ApiRouteStop[]>('/api/transporters/me/route/optimize', {
+export function optimizeMyRoute(token: string): Promise<RouteResponseDto> {
+  return apiFetch<RouteResponseDto>('/api/transporters/me/route/optimize', {
     method: 'POST',
     token,
   });
 }
 
-/** [Transportador] Envia a posição GPS atual do aparelho. */
+/** [Transportador] Envia a posição GPS (e direção, se disponível) atual do aparelho. */
 export function postMyLocation(
   token: string,
   latitude: number,
   longitude: number,
-): Promise<{ latitude: number; longitude: number; updatedAt: string }> {
+  heading?: number | null,
+): Promise<{ latitude: number; longitude: number; heading: number | null; updatedAt: string }> {
   return apiFetch('/api/transporters/me/location', {
     method: 'POST',
-    body: { latitude, longitude },
+    body: { latitude, longitude, heading: heading ?? null },
     token,
   });
 }

@@ -5,9 +5,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { getGuardianDashboard, GuardianDashboardDto } from '@/api/guardian';
-import { cancelHireRequest, dismissHireRequest } from '@/api/hire';
+import {
+  acceptCounterProposal,
+  cancelHireRequest,
+  dismissHireRequest,
+  rejectCounterProposal,
+} from '@/api/hire';
 import { listGuardianNotices, removeReaction, setReaction } from '@/api/notices';
 import { GuardianNoticeDto, NOTICE_EMOJIS } from '@/types';
+import { useOnboardingGate } from '@/onboarding/useOnboardingGate';
+import { WhatsNewBanner } from '@/onboarding/WhatsNewBanner';
 import { formatCurrency } from '@/data/mockData';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
@@ -25,6 +32,7 @@ export default function GuardianHomeScreen() {
   const { user, token, dependents, selectedDependentId, selectDependent } = useAppState();
   const [dashboard, setDashboard] = useState<GuardianDashboardDto | null>(null);
   const [notices, setNotices] = useState<GuardianNoticeDto[]>([]);
+  const onboarding = useOnboardingGate('guardian');
 
   const reloadDashboard = useCallback(() => {
     if (!token) return;
@@ -52,6 +60,26 @@ export default function GuardianHomeScreen() {
       reloadDashboard();
     } catch {
       /* ignora */
+    }
+  }
+
+  async function handleAcceptCounter(id: number) {
+    if (!token) return;
+    try {
+      await acceptCounterProposal(token, id);
+      reloadDashboard();
+    } catch (err: any) {
+      Alert.alert('Erro', err?.message ?? 'Não foi possível aceitar a contraproposta.');
+    }
+  }
+
+  async function handleRejectCounter(id: number) {
+    if (!token) return;
+    try {
+      await rejectCounterProposal(token, id);
+      reloadDashboard();
+    } catch (err: any) {
+      Alert.alert('Erro', err?.message ?? 'Não foi possível recusar a contraproposta.');
     }
   }
 
@@ -95,6 +123,14 @@ export default function GuardianHomeScreen() {
         <NoticeBell count={newNotices.length} />
       </View>
 
+      {onboarding.mode === 'whats-new' ? (
+        <WhatsNewBanner
+          count={onboarding.newStepsCount}
+          onView={onboarding.viewGuide}
+          onDismiss={onboarding.dismissNew}
+        />
+      ) : null}
+
       <NewNoticesSection notices={newNotices} onReact={handleReact} />
 
       {dependents.length > 1 ? (
@@ -125,6 +161,8 @@ export default function GuardianHomeScreen() {
         <PopulatedDashboard dashboard={dashboard} />
       ) : dashboard?.pendingContractId ? (
         <PendingContractCard dashboard={dashboard} />
+      ) : dashboard?.counterHireRequestId ? (
+        <CounterHireCard dashboard={dashboard} onAccept={handleAcceptCounter} onReject={handleRejectCounter} />
       ) : dashboard?.pendingHireRequestId ? (
         <PendingHireCard dashboard={dashboard} onCancel={handleCancelHire} />
       ) : dashboard?.rejectedHireRequestId ? (
@@ -231,6 +269,78 @@ function PendingHireCard({
         onPress={confirmCancel}
         style={styles.hireBtn}
       />
+    </Card>
+  );
+}
+
+/** Card: contraproposta do transportador — resposta do responsável necessária. */
+function CounterHireCard({
+  dashboard,
+  onAccept,
+  onReject,
+}: {
+  dashboard: GuardianDashboardDto;
+  onAccept: (id: number) => void;
+  onReject: (id: number) => void;
+}) {
+  const { colors, styles } = useThemedScreen(createStyles);
+  const id = dashboard.counterHireRequestId as number;
+  const name = dashboard.counterHireTransporterName ?? 'O transportador';
+  const student = dashboard.studentName ? firstName(dashboard.studentName) : null;
+
+  function confirmAccept() {
+    Alert.alert(
+      'Aceitar contraproposta',
+      `Aceitar ${formatCurrency(dashboard.counterProposedFee ?? 0)}/mês de ${name}? Você vai poder revisar e assinar o contrato em seguida.`,
+      [
+        { text: 'Voltar', style: 'cancel' },
+        { text: 'Aceitar', onPress: () => onAccept(id) },
+      ],
+    );
+  }
+
+  function confirmReject() {
+    Alert.alert(
+      'Recusar contraproposta',
+      `Deseja recusar a contraproposta de ${name}? Você poderá buscar outro transportador.`,
+      [
+        { text: 'Voltar', style: 'cancel' },
+        { text: 'Recusar', style: 'destructive', onPress: () => onReject(id) },
+      ],
+    );
+  }
+
+  return (
+    <Card style={styles.hireCounterCard}>
+      <View style={styles.hireHeader}>
+        <View style={styles.hireIcon}>
+          <Ionicons name="swap-horizontal-outline" size={20} color={colors.brandDark} />
+        </View>
+        <View style={styles.flex}>
+          <Text style={styles.hireTitle}>Contraproposta recebida</Text>
+          <Text style={styles.hireText}>
+            {name} propôs outro valor{student ? ` para o transporte de ${student}` : ''}. Sua resposta é
+            necessária.
+          </Text>
+        </View>
+      </View>
+      <View style={styles.counterValues}>
+        <View style={styles.counterValueItem}>
+          <Text style={styles.counterValueLabel}>Você propôs</Text>
+          <Text style={styles.counterValueAmount}>{formatCurrency(dashboard.counterOriginalFee ?? 0)}</Text>
+        </View>
+        <Ionicons name="arrow-forward" size={16} color={colors.textMuted} />
+        <View style={styles.counterValueItem}>
+          <Text style={styles.counterValueLabel}>Contraproposta</Text>
+          <Text style={styles.counterValueAmountHighlight}>
+            {formatCurrency(dashboard.counterProposedFee ?? 0)}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.hireActions}>
+        <Button label="Recusar" variant="outline" onPress={confirmReject} style={styles.hireActionBtn} />
+        <Button label="Aceitar" onPress={confirmAccept} style={styles.hireActionBtn} />
+      </View>
     </Card>
   );
 }
@@ -664,6 +774,41 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   hireRejectedCard: {
     backgroundColor: colors.dangerBg,
     borderColor: colors.danger,
+  },
+  hireCounterCard: {
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brand,
+  },
+  counterValues: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+  },
+  counterValueItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  counterValueLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  counterValueAmount: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginTop: 2,
+  },
+  counterValueAmountHighlight: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.brandDark,
+    marginTop: 2,
   },
   hireHeader: {
     flexDirection: 'row',

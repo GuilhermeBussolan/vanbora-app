@@ -10,7 +10,7 @@ import React, {
   useState,
 } from 'react';
 import { AuthResponse, login as apiLogin } from '@/api/auth';
-import { registerPushToken, removePushToken } from '@/api/account';
+import { registerPushToken, removePushToken, updateOnboardingProgress } from '@/api/account';
 import { listDependents } from '@/api/dependents';
 import { registerForPushNotifications } from '@/lib/push';
 import { AuthUser, DependentDto, UserRole } from '@/types';
@@ -45,6 +45,8 @@ interface AppState {
   login: (email: string, password: string) => Promise<UserRole>;
   /** Grava a sessão a partir de uma resposta de login/cadastro. Devolve o papel. */
   applySession: (response: AuthResponse) => Promise<UserRole>;
+  /** Marca uma versão do guia de funcionalidades como vista (persiste no backend + sessão local). */
+  markOnboardingSeen: (version: number) => Promise<void>;
   logout: () => void;
 }
 
@@ -150,6 +152,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     return appRole;
   }, []);
 
+  const markOnboardingSeen = useCallback(
+    async (version: number): Promise<void> => {
+      if (!token || !user || user.onboardingLastSeenVersion >= version) return;
+      const updatedUser: AuthUser = { ...user, onboardingLastSeenVersion: version };
+      setUser(updatedUser);
+      await AsyncStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ token, user: updatedUser } satisfies StoredSession),
+      ).catch(() => undefined);
+      updateOnboardingProgress(token, version).catch(() => undefined);
+    },
+    [token, user],
+  );
+
   const login = useCallback(
     async (email: string, password: string): Promise<UserRole> => {
       const response = await apiLogin(email, password);
@@ -187,6 +203,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setHasTransporter: handleSetHasTransporter,
       login,
       applySession,
+      markOnboardingSeen,
       logout,
     }),
     [
@@ -201,6 +218,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       handleSetHasTransporter,
       login,
       applySession,
+      markOnboardingSeen,
       logout,
     ],
   );

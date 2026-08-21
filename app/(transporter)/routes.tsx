@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Badge, Button, Card, LeafletMap, MapPlaceholder, Screen } from '@/components';
-import { MapPoint } from '@/components/ui/LeafletMap';
+import { Badge, Button, Card, MapPlaceholder, Screen, VanboraMap } from '@/components';
+import { MapPoint } from '@/components/ui/VanboraMap';
 import { useAppState } from '@/context/AppState';
 import { useLocationBroadcast } from '@/hooks/useLocationBroadcast';
 import { getLocationSharing, getMyRoute, optimizeMyRoute } from '@/api/tracking';
@@ -19,16 +19,19 @@ const stopBadge: Record<ApiRouteStop['status'], { label: string; tone: 'success'
   SCHOOL: { label: 'DESTINO', tone: 'neutral' },
 };
 
-function toMapPoint(stop: ApiRouteStop): MapPoint | null {
+/** `activePickups` já traz só quem vai hoje, na ordem ativa — o índice nessa lista
+ *  (não `stop.position`, que é a posição base/permanente) é o número exibido. */
+function toMapPoint(stop: ApiRouteStop, activePickups: ApiRouteStop[]): MapPoint | null {
   if (stop.latitude == null || stop.longitude == null) return null;
   const kind: MapPoint['kind'] =
     stop.status === 'SCHOOL' ? 'school' : stop.status === 'NOT_GOING' ? 'inactive' : 'pickup';
+  const activeIdx = kind === 'pickup' ? activePickups.findIndex((s) => s.id === stop.id) : -1;
   return {
     id: stop.id,
     latitude: stop.latitude,
     longitude: stop.longitude,
     label: stop.label,
-    order: stop.status === 'SCHOOL' ? undefined : stop.position,
+    order: activeIdx >= 0 ? activeIdx + 1 : undefined,
     kind,
   };
 }
@@ -38,6 +41,7 @@ export default function RoutesScreen() {
   const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token } = useAppState();
   const [stops, setStops] = useState<ApiRouteStop[]>([]);
+  const [routeGeometry, setRouteGeometry] = useState<[number, number][] | null>(null);
   const [loading, setLoading] = useState(true);
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +70,8 @@ export default function RoutesScreen() {
     try {
       setError(null);
       const data = await getMyRoute(token);
-      setStops(data);
+      setStops(data.stops);
+      setRouteGeometry(data.routeGeometry);
     } catch (err: any) {
       setError(err?.message ?? 'Não foi possível carregar a rota.');
     } finally {
@@ -84,7 +89,8 @@ export default function RoutesScreen() {
     try {
       setError(null);
       const data = await optimizeMyRoute(token);
-      setStops(data);
+      setStops(data.stops);
+      setRouteGeometry(data.routeGeometry);
     } catch (err: any) {
       setError(err?.message ?? 'Falha ao otimizar a rota.');
     } finally {
@@ -97,7 +103,10 @@ export default function RoutesScreen() {
     if (!ok) setError('Não foi possível abrir o app de mapas para navegar.');
   }
 
-  const points = stops.map(toMapPoint).filter((p): p is MapPoint => p !== null);
+  const activePickups = stops.filter((s) => s.status === 'GOING');
+  const points = stops
+    .map((s) => toMapPoint(s, activePickups))
+    .filter((p): p is MapPoint => p !== null);
   const hasGeo = points.length > 0;
   const schoolStop = stops.find((s) => s.status === 'SCHOOL');
   const totalKm = schoolStop?.cumulativeKm ?? null;
@@ -115,10 +124,11 @@ export default function RoutesScreen() {
 
       <View style={styles.mapWrap}>
         {hasGeo ? (
-          <LeafletMap
+          <VanboraMap
             points={points}
             live={current ? { ...current, label: 'Você' } : null}
             drawPath
+            routeGeometry={routeGeometry}
             height={200}
           />
         ) : (
@@ -202,18 +212,33 @@ export default function RoutesScreen() {
           {stops.map((stop, index) => {
             const badge = stopBadge[stop.status];
             const isSchool = stop.status === 'SCHOOL';
+            const isSkipped = stop.status === 'NOT_GOING';
+            // Numeração só entre quem vai hoje — quem avisou falta não ocupa posição.
+            const activeIdx = !isSchool && !isSkipped ? activePickups.findIndex((s) => s.id === stop.id) + 1 : null;
             return (
-              <Card key={stop.id} style={styles.stopCard}>
-                <View style={[styles.indexCircle, isSchool ? styles.indexSchool : styles.indexDefault]}>
+              <Card key={stop.id} style={isSkipped ? styles.stopCardSkipped : styles.stopCard}>
+                <View
+                  style={[
+                    styles.indexCircle,
+                    isSchool ? styles.indexSchool : isSkipped ? styles.indexSkipped : styles.indexDefault,
+                  ]}
+                >
                   {isSchool ? (
                     <Ionicons name="flag" size={14} color={colors.textOnBrand} />
+                  ) : isSkipped ? (
+                    <Ionicons name="close" size={14} color={colors.textMuted} />
                   ) : (
-                    <Text style={styles.indexText}>{index + 1}</Text>
+                    <Text style={styles.indexText}>{activeIdx}</Text>
                   )}
                 </View>
                 <View style={styles.stopInfo}>
                   <Text style={styles.stopName}>{stop.label}</Text>
                   <Text style={styles.stopAddress}>{stop.address}</Text>
+                  {activeIdx != null && activePickups.length > 0 ? (
+                    <Text style={styles.orderCaption}>
+                      {activeIdx}º de {activePickups.length} hoje
+                    </Text>
+                  ) : null}
                   {stop.etaClock ? (
                     <View style={styles.etaRow}>
                       <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
@@ -344,6 +369,12 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     alignItems: 'center',
     gap: spacing.md,
   },
+  stopCardSkipped: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    opacity: 0.6,
+  },
   indexCircle: {
     width: 30,
     height: 30,
@@ -357,6 +388,9 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   indexSchool: {
     backgroundColor: colors.brand,
   },
+  indexSkipped: {
+    backgroundColor: colors.border,
+  },
   indexText: {
     fontSize: 13,
     fontWeight: '700',
@@ -365,6 +399,11 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   stopInfo: {
     flex: 1,
     gap: 2,
+  },
+  orderCaption: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   stopName: {
     fontSize: 14,

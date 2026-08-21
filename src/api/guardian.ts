@@ -46,6 +46,13 @@ export interface GuardianDashboardDto {
   /** Solicitação recusada ainda não dispensada. */
   rejectedHireRequestId: number | null;
   rejectedHireTransporterName: string | null;
+  /** Contraproposta do transportador aguardando resposta do responsável. */
+  counterHireRequestId: number | null;
+  counterHireTransporterName: string | null;
+  /** Valor que o responsável havia proposto originalmente. */
+  counterOriginalFee: number | null;
+  /** Novo valor contraproposto pelo transportador. */
+  counterProposedFee: number | null;
 }
 
 /** Monta `?dependentId=...` (ou vazio) para as rotas por dependente. */

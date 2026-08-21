@@ -67,6 +67,7 @@ function ThemedStack() {
         <Stack.Screen name="finance-detail" />
         <Stack.Screen name="add-revenue" />
         <Stack.Screen name="hire/[id]" />
+        <Stack.Screen name="counter-proposal/[id]" />
         <Stack.Screen name="add-expense" />
         <Stack.Screen name="add-fuel" />
         <Stack.Screen name="finance-settings" />
@@ -86,6 +87,7 @@ function ThemedStack() {
         <Stack.Screen name="notice/[id]" />
         <Stack.Screen name="transporter-notice/[id]" />
         <Stack.Screen name="guardian-notices" />
+        <Stack.Screen name="onboarding" />
       </Stack>
     </>
   );

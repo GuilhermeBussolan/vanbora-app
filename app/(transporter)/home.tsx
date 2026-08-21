@@ -8,6 +8,8 @@ import { listHireRequests, releaseContract, rejectHireRequest } from '@/api/hire
 import { listMyNotices } from '@/api/notices';
 import { getDashboard, DashboardMetrics } from '@/api/dashboard';
 import { HireRequestDto, TransporterNoticeDto } from '@/types';
+import { useOnboardingGate } from '@/onboarding/useOnboardingGate';
+import { WhatsNewBanner } from '@/onboarding/WhatsNewBanner';
 import { currentTransporterName, formatCurrency } from '@/data/mockData';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
@@ -16,6 +18,7 @@ import type { ThemeColors, Typography } from '@/theme';
 export default function TransporterHomeScreen() {
   const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token, user } = useAppState();
+  const onboarding = useOnboardingGate('transporter');
   const [requests, setRequests] = useState<HireRequestDto[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -70,6 +73,14 @@ export default function TransporterHomeScreen() {
       <Text style={[typography.screenTitle, styles.greeting]}>
         Olá, {user?.name ?? currentTransporterName}
       </Text>
+
+      {onboarding.mode === 'whats-new' ? (
+        <WhatsNewBanner
+          count={onboarding.newStepsCount}
+          onView={onboarding.viewGuide}
+          onDismiss={onboarding.dismissNew}
+        />
+      ) : null}
 
       <View style={styles.metrics}>
         {metricCards.map((m) => (
@@ -167,6 +178,27 @@ export default function TransporterHomeScreen() {
                   style={styles.rejectBtn}
                 />
               </View>
+              {req.proposedFee != null ? (
+                <Button
+                  label="Contrapropor"
+                  variant="outline"
+                  icon="swap-horizontal-outline"
+                  onPress={() =>
+                    router.push({
+                      pathname: '/counter-proposal/[id]',
+                      params: {
+                        id: String(req.id),
+                        name: req.guardianName,
+                        studentName: req.studentName,
+                        baseFee: String(req.baseFee),
+                        proposedFee: String(req.proposedFee),
+                      },
+                    })
+                  }
+                  disabled={busyId === req.id}
+                  style={styles.counterBtn}
+                />
+              ) : null}
             </Card>
           ))
         )}
@@ -378,6 +410,10 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   },
   rejectBtn: {
     flex: 1,
+    height: 44,
+  },
+  counterBtn: {
+    marginTop: spacing.sm,
     height: 44,
   },
   noticeTop: {

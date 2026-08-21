@@ -25,9 +25,11 @@ export async function openRouteInMaps(
   stops: ApiRouteStop[],
   origin?: LatLng | null,
 ): Promise<boolean> {
+  // Exclui quem avisou falta hoje (NOT_GOING) — a van não vai passar lá, não deve
+  // virar parada/desvio na navegação (mesmo filtro já aplicado no mapa e na lista).
   const geo = stops.filter(
     (s): s is ApiRouteStop & { latitude: number; longitude: number } =>
-      s.latitude != null && s.longitude != null,
+      s.latitude != null && s.longitude != null && s.status !== 'NOT_GOING',
   );
   if (geo.length === 0) return false;
 

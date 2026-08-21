@@ -45,3 +45,12 @@ export function removePushToken(jwt: string, expoToken: string): Promise<void> {
     token: jwt,
   });
 }
+
+/** Registra que o usuário viu (ou dispensou) uma versão do guia de funcionalidades. */
+export function updateOnboardingProgress(token: string, seenVersion: number): Promise<void> {
+  return apiFetch<void>('/api/account/onboarding', {
+    method: 'PUT',
+    body: { seenVersion },
+    token,
+  });
+}

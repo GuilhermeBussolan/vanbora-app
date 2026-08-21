@@ -7,9 +7,11 @@
     "scheme": "vanbora",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "icon": "./assets/brand/icon.png",
     "splash": {
       "backgroundColor": "#F5C518",
-      "resizeMode": "contain"
+      "resizeMode": "contain",
+      "image": "./assets/brand/logo-symbol-mono-black.png"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -19,7 +21,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#F5C518"
+        "backgroundColor": "#F5C518",
+        "foregroundImage": "./assets/brand/adaptive-icon.png"
       }
     },
     "web": {

@@ -9,7 +9,7 @@ export { StarRating } from './ui/StarRating';
 export { Logo } from './ui/Logo';
 export { SectionTitle } from './ui/SectionTitle';
 export { MapPlaceholder } from './ui/MapPlaceholder';
-export { LeafletMap } from './ui/LeafletMap';
+export { VanboraMap } from './ui/VanboraMap';
 export { StepProgress } from './ui/StepProgress';
 
 export { Screen } from './layout/Screen';

@@ -102,6 +102,8 @@ export interface AuthUser {
   email: string;
   phone: string;
   role: ApiUserRole;
+  /** Maior versão do guia de funcionalidades (onboarding) que o usuário já viu. 0 = nunca viu. */
+  onboardingLastSeenVersion: number;
 }
 
 /** Parada da rota vinda do backend (com coordenadas para o mapa). */
@@ -448,6 +450,8 @@ export interface GuardianTracking {
   studentName: string | null;
   latitude: number | null;
   longitude: number | null;
+  /** Direção do deslocamento em graus (0-360), quando disponível. */
+  heading: number | null;
   updatedAt: string | null;
   myStop: ApiRouteStop | null;
   schoolStop: ApiRouteStop | null;
@@ -458,6 +462,14 @@ export interface GuardianTracking {
   etaToStudentClock: string | null;
   etaToSchoolMinutes: number | null;
   etaToSchoolClock: string | null;
+  /** Trajeto seguindo ruas (van → parada do dependente → escola); null se indisponível. */
+  routeGeometry: [number, number][] | null;
+}
+
+/** Rota do dia do transportador: paradas ordenadas + trajeto seguindo ruas (se disponível). */
+export interface RouteResponseDto {
+  stops: ApiRouteStop[];
+  routeGeometry: [number, number][] | null;
 }
 
 export interface Helper {
