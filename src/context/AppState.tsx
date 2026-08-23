@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import React, {
   createContext,
@@ -15,7 +16,14 @@ import { listDependents } from '@/api/dependents';
 import { registerForPushNotifications } from '@/lib/push';
 import { AuthUser, DependentDto, UserRole } from '@/types';
 
+/**
+ * Chave da sessão no SecureStore (Keychain no iOS / Keystore no Android).
+ * Antes ficava em AsyncStorage (texto plano, legível por qualquer código com
+ * acesso ao sandbox do app); o JWT + dados do usuário agora ficam em
+ * armazenamento seguro do sistema operacional.
+ */
 const STORAGE_KEY = 'vanbora.session';
+/** Preferência de dependente selecionado — não é sensível, pode ficar no AsyncStorage. */
 const DEPENDENT_KEY = 'vanbora.selectedDependent';
 
 interface StoredSession {
@@ -48,6 +56,8 @@ interface AppState {
   /** Marca uma versão do guia de funcionalidades como vista (persiste no backend + sessão local). */
   markOnboardingSeen: (version: number) => Promise<void>;
   logout: () => void;
+  /** true assim que a tentativa de restaurar a sessão salva (SecureStore) termina. */
+  sessionRestored: boolean;
 }
 
 const AppStateContext = createContext<AppState | undefined>(undefined);
@@ -68,12 +78,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [dependents, setDependents] = useState<DependentDto[]>([]);
   const [selectedDependentId, setSelectedDependentId] = useState<number | null>(null);
+  const [sessionRestored, setSessionRestored] = useState(false);
   // Token de push (Expo) do aparelho, para removê-lo do backend no logout.
   const pushTokenRef = useRef<string | null>(null);
 
-  // Restaura sessão persistida ao iniciar.
+  // Restaura sessão persistida (SecureStore) ao iniciar.
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
+    SecureStore.getItemAsync(STORAGE_KEY)
       .then((raw) => {
         if (!raw) return;
         const session = JSON.parse(raw) as StoredSession;
@@ -83,7 +94,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {
         /* sessão ausente/corrompida: segue deslogado */
-      });
+      })
+      .finally(() => setSessionRestored(true));
   }, []);
 
   const handleSetHasTransporter = useCallback((value: boolean) => {
@@ -145,7 +157,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user);
     setRole(appRole);
     setHasTransporter(false);
-    await AsyncStorage.setItem(
+    await SecureStore.setItemAsync(
       STORAGE_KEY,
       JSON.stringify({ token: response.token, user: response.user } satisfies StoredSession),
     );
@@ -157,7 +169,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (!token || !user || user.onboardingLastSeenVersion >= version) return;
       const updatedUser: AuthUser = { ...user, onboardingLastSeenVersion: version };
       setUser(updatedUser);
-      await AsyncStorage.setItem(
+      await SecureStore.setItemAsync(
         STORAGE_KEY,
         JSON.stringify({ token, user: updatedUser } satisfies StoredSession),
       ).catch(() => undefined);
@@ -186,7 +198,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setHasTransporter(false);
     setDependents([]);
     setSelectedDependentId(null);
-    AsyncStorage.removeItem(STORAGE_KEY).catch(() => undefined);
+    SecureStore.deleteItemAsync(STORAGE_KEY).catch(() => undefined);
   }, [token]);
 
   const value = useMemo(
@@ -205,6 +217,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       applySession,
       markOnboardingSeen,
       logout,
+      sessionRestored,
     }),
     [
       role,
@@ -220,6 +233,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       applySession,
       markOnboardingSeen,
       logout,
+      sessionRestored,
     ],
   );
 

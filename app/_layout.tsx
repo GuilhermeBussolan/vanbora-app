@@ -1,16 +1,49 @@
 import '@/lib/polyfills';
 import React, { useEffect } from 'react';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useSegments } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AppStateProvider } from '@/context/AppState';
+import { AppStateProvider, useAppState } from '@/context/AppState';
 import { ThemeProvider, useTheme } from '@/theme';
+
+/**
+ * Guard central de rota: um Responsável não pode navegar (nem por deep link)
+ * para telas de `(transporter)`, um Transportador não pode acessar `(guardian)`,
+ * e ninguém sem sessão acessa qualquer uma das duas — sem depender apenas da UI
+ * não linkar para lá. A checagem real de permissão continua no backend; isto é
+ * só a camada de defesa em profundidade no cliente.
+ */
+function useRouteGuard() {
+  const segments = useSegments();
+  const { token, role, sessionRestored } = useAppState();
+
+  useEffect(() => {
+    // Evita redirecionar durante a restauração da sessão salva (evita flicker/falso-negativo).
+    if (!sessionRestored) return;
+
+    const group = segments[0];
+    const inGuardianArea = group === '(guardian)';
+    const inTransporterArea = group === '(transporter)';
+    if (!inGuardianArea && !inTransporterArea) return;
+
+    if (!token) {
+      router.replace('/(auth)/welcome');
+      return;
+    }
+    if (role === 'guardian' && inTransporterArea) {
+      router.replace('/(guardian)/home');
+    } else if (role === 'transporter' && inGuardianArea) {
+      router.replace('/(transporter)/home');
+    }
+  }, [segments, token, role, sessionRestored]);
+}
 
 /** Stack de navegação com cores/barra de status reativas ao tema ativo. */
 function ThemedStack() {
   const { colors, isDark } = useTheme();
+  useRouteGuard();
 
   // Ao tocar numa notificação push, abre a tela relacionada ao evento.
   useEffect(() => {

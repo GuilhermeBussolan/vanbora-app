@@ -62,6 +62,9 @@ export default function TransporterProfileScreen() {
 
   function handleLogout() {
     logout();
+    // dismissAll esvazia a pilha de navegação antes do replace, para que o botão
+    // "voltar" não reexiba telas autenticadas após o logout.
+    router.dismissAll();
     router.replace('/(auth)/welcome');
   }
 
