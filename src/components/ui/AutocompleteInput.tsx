@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
+import { foldForCompare as normalize } from '@/lib/textNormalize';
 
 interface AutocompleteInputProps {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -20,15 +21,6 @@ interface AutocompleteInputProps {
   options: string[];
   /** Disparado ao escolher uma opção da lista (além de atualizar o texto). */
   onSelect?: (option: string) => void;
-}
-
-/** Remove acentos e caixa para casar "São" com "sao". */
-function normalize(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
 }
 
 /**

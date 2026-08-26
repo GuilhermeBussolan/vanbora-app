@@ -92,7 +92,12 @@ export interface UploadFile {
 }
 
 /** Envia um arquivo (campo `file`) via multipart e devolve o JSON tipado. */
-export async function apiUpload<T>(path: string, file: UploadFile, token?: string | null): Promise<T> {
+export async function apiUpload<T>(
+  path: string,
+  file: UploadFile,
+  token?: string | null,
+  method: 'POST' | 'PUT' = 'POST',
+): Promise<T> {
   const form = new FormData();
   // O cast é necessário: o FormData do React Native aceita { uri, name, type }.
   form.append('file', file as unknown as Blob);
@@ -103,7 +108,7 @@ export async function apiUpload<T>(path: string, file: UploadFile, token?: strin
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, { method: 'POST', headers, body: form });
+    response = await fetch(`${API_BASE_URL}${path}`, { method, headers, body: form });
   } catch {
     throw new ApiError(0, 'Não foi possível enviar a imagem. Verifique a conexão com a API.');
   }

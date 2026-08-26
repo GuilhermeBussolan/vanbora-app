@@ -35,6 +35,13 @@ export interface MonthlyRevenue {
   value: number;
 }
 
+/** Receita recebida x despesas de um dos últimos 6 meses (gráfico "Receita x Despesas"). */
+export interface MonthlyTrend {
+  label: string;
+  received: number;
+  expenses: number;
+}
+
 /** Comparação com o período imediatamente anterior. *ChangePct null = sem base de comparação (período anterior zerado). */
 export interface PeriodComparison {
   previousReceived: number;
@@ -62,6 +69,8 @@ export interface FinanceSummary {
   comparison: PeriodComparison;
   /** Soma das mensalidades das matrículas ativas — quanto deve entrar por mês se nada mudar. */
   recurringMonthlyRevenue: number;
+  /** Últimos 6 meses corridos (mês atual incluído), independente do período pedido. */
+  monthlyTrend: MonthlyTrend[];
 }
 
 /**

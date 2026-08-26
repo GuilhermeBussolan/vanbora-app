@@ -67,9 +67,9 @@ export default function RegisterTransporterScreen() {
       setError('As senhas não conferem.');
       return;
     }
-    // Leva os dados da etapa 1 para a etapa 2 (área e preço), onde a conta é criada.
+    // Leva os dados da etapa 1 para a etapa 2 (veículo).
     router.push({
-      pathname: '/(auth)/register-transporter-zones',
+      pathname: '/(auth)/register-transporter-vehicle',
       params: {
         name: form.name.trim(),
         email: form.email.trim(),
@@ -85,7 +85,7 @@ export default function RegisterTransporterScreen() {
   return (
     <Screen footer={<Button label="Próximo" onPress={handleNext} />}>
       <AppHeader title="Criar Conta" showBack />
-      <StepProgress steps={2} current={1} />
+      <StepProgress steps={3} current={1} />
       <Text style={[typography.sectionTitle, styles.section]}>Dados do Transportador</Text>
 
       <View style={styles.form}>

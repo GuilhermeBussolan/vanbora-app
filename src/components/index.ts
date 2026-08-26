@@ -4,6 +4,7 @@ export { AutocompleteInput } from './ui/AutocompleteInput';
 export { Card } from './ui/Card';
 export { Badge } from './ui/Badge';
 export { Chip } from './ui/Chip';
+export { CheckboxRow } from './ui/CheckboxRow';
 export { Avatar } from './ui/Avatar';
 export { StarRating } from './ui/StarRating';
 export { Logo } from './ui/Logo';

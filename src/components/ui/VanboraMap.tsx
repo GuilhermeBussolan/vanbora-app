@@ -3,7 +3,7 @@ import { Modal, Platform, Pressable, StyleSheet, Text, View, ViewStyle } from 'r
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
-import { radius, spacing, useThemedScreen } from '@/theme';
+import { radius, spacing, useTheme, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
 
 export interface MapPoint {
@@ -50,13 +50,45 @@ interface Payload {
   routeGeometry: [number, number][] | null;
 }
 
+/** Paleta das camadas do mapa (fundo/água/ruas/rótulos) — clara ou escura. */
+interface MapPalette {
+  bg: string;
+  water: string;
+  roadMinor: string;
+  roadMajor: string;
+  labelText: string;
+  placeText: string;
+}
+
+/** Igual ao visual original. */
+const LIGHT_PALETTE: MapPalette = {
+  bg: '#EFEFF2',
+  water: '#DCE3EA',
+  roadMinor: '#D6D6DC',
+  roadMajor: '#C7C7CE',
+  labelText: '#9C9CA6',
+  placeText: '#A8A8B2',
+};
+
+/** Cinza bem escuro (quase preto) — acompanha o modo noturno do app. */
+const DARK_PALETTE: MapPalette = {
+  bg: '#0B0B0C',
+  water: '#131417',
+  roadMinor: '#2A2A2E',
+  roadMajor: '#3C3C42',
+  labelText: '#8E8E93',
+  placeText: '#98989F',
+};
+
 /**
  * HTML base do mapa: MapLibre GL JS + tiles vetoriais do OpenFreeMap (gratuito, sem
  * chave, sem limite) com um estilo próprio minimalista (sem POIs, ruas discretas) —
  * pensado para transporte escolar, não para navegação genérica cheia de informação.
- * Os dados são injetados via `window.VanBora.update(...)`.
+ * Cores do terreno vêm de `palette` (clara/escura, conforme o tema do app). Os dados
+ * de posição/paradas são injetados à parte via `window.VanBora.update(...)`.
  */
-const HTML = `<!DOCTYPE html>
+function buildHtml(palette: MapPalette): string {
+  return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -64,7 +96,7 @@ const HTML = `<!DOCTYPE html>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <style>
-    html, body, #map { height: 100%; margin: 0; padding: 0; background: #EFEFF2; }
+    html, body, #map { height: 100%; margin: 0; padding: 0; background: ${palette.bg}; }
     .maplibregl-ctrl-attrib { font-size: 9px; }
     .pin {
       display: flex; align-items: center; justify-content: center;
@@ -94,31 +126,31 @@ const HTML = `<!DOCTYPE html>
       },
       glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
       layers: [
-        { id: 'bg', type: 'background', paint: { 'background-color': '#EFEFF2' } },
+        { id: 'bg', type: 'background', paint: { 'background-color': '${palette.bg}' } },
         { id: 'water', type: 'fill', source: 'ofm', 'source-layer': 'water',
-          paint: { 'fill-color': '#DCE3EA' } },
+          paint: { 'fill-color': '${palette.water}' } },
         { id: 'road-minor', type: 'line', source: 'ofm', 'source-layer': 'transportation',
           filter: ['match', ['get', 'class'], ['minor', 'service', 'path', 'track'], true, false],
           layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': '#D6D6DC',
+          paint: { 'line-color': '${palette.roadMinor}',
             'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.5, 18, 2.5] } },
         { id: 'road-major', type: 'line', source: 'ofm', 'source-layer': 'transportation',
           filter: ['match', ['get', 'class'],
             ['motorway', 'trunk', 'primary', 'secondary', 'tertiary'], true, false],
           layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': '#C7C7CE',
+          paint: { 'line-color': '${palette.roadMajor}',
             'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 18, 5] } },
         { id: 'road-label', type: 'symbol', source: 'ofm', 'source-layer': 'transportation_name',
           minzoom: 14,
           layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'],
             'text-size': 10, 'symbol-placement': 'line' },
-          paint: { 'text-color': '#9C9CA6', 'text-halo-color': '#EFEFF2', 'text-halo-width': 1.2 } },
+          paint: { 'text-color': '${palette.labelText}', 'text-halo-color': '${palette.bg}', 'text-halo-width': 1.2 } },
         { id: 'place-label', type: 'symbol', source: 'ofm', 'source-layer': 'place',
           filter: ['match', ['get', 'class'],
             ['city', 'town', 'village', 'suburb', 'neighbourhood'], true, false],
           layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'],
             'text-size': ['interpolate', ['linear'], ['zoom'], 8, 10, 14, 13] },
-          paint: { 'text-color': '#A8A8B2', 'text-halo-color': '#EFEFF2', 'text-halo-width': 1.4 } }
+          paint: { 'text-color': '${palette.placeText}', 'text-halo-color': '${palette.bg}', 'text-halo-width': 1.4 } }
       ]
     };
 
@@ -326,19 +358,28 @@ const HTML = `<!DOCTYPE html>
   </script>
 </body>
 </html>`;
+}
+
+// Construído uma vez (não a cada render) — o HTML em si não muda, só a paleta escolhida.
+const HTML_LIGHT = buildHtml(LIGHT_PALETTE);
+const HTML_DARK = buildHtml(DARK_PALETTE);
 
 /** Canvas do mapa: WebView (nativo) ou iframe (web). Atualiza sem recarregar no nativo. */
 function MapCanvas({
   payload,
   onFollowLost,
   webRef,
+  isDark,
 }: {
   payload: Payload;
   onFollowLost: () => void;
   webRef: React.RefObject<WebView | null>;
+  /** Acompanha o tema do app (claro/escuro/sistema) — escolhe a paleta do terreno do mapa. */
+  isDark: boolean;
 }) {
   const { colors, styles } = useThemedScreen(createStyles);
   const [loaded, setLoaded] = useState(false);
+  const baseHtml = isDark ? HTML_DARK : HTML_LIGHT;
 
   useEffect(() => {
     if (Platform.OS === 'web' || !loaded || !webRef.current) return;
@@ -357,7 +398,7 @@ function MapCanvas({
   }
 
   if (Platform.OS === 'web') {
-    const html = HTML.replace(
+    const html = baseHtml.replace(
       '<script>\n    var STYLE',
       `<script>window.__INITIAL__ = ${JSON.stringify(payload)};\n    var STYLE`,
     );
@@ -371,7 +412,7 @@ function MapCanvas({
     <WebView
       ref={webRef}
       originWhitelist={['*']}
-      source={{ html: HTML }}
+      source={{ html: baseHtml }}
       onLoadEnd={() => setLoaded(true)}
       onMessage={handleMessage}
       style={styles.web}
@@ -393,6 +434,7 @@ export function VanboraMap({
   expandable = true,
 }: VanboraMapProps) {
   const { colors, styles } = useThemedScreen(createStyles);
+  const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const [fullscreen, setFullscreen] = useState(false);
   const [showRecenter, setShowRecenter] = useState(false);
@@ -418,6 +460,7 @@ export function VanboraMap({
           payload={payload}
           webRef={webRef}
           onFollowLost={() => setShowRecenter(true)}
+          isDark={isDark}
         />
         {showRecenter ? (
           <Pressable
@@ -457,6 +500,7 @@ export function VanboraMap({
                 payload={payload}
                 webRef={fullscreenWebRef}
                 onFollowLost={() => setShowRecenter(true)}
+                isDark={isDark}
               />
             ) : null}
           </View>

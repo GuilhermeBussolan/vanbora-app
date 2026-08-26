@@ -1,4 +1,4 @@
-import { AuthUser } from '@/types';
+import { AuthUser, VehicleAccessibilityFeature, VehicleCharacteristic } from '@/types';
 import { apiFetch } from './client';
 
 export interface AuthResponse {
@@ -53,6 +53,10 @@ export interface RegisterTransporterBody {
   schools?: string[];
   neighborhoods?: string[];
   baseMonthlyFee?: number | null;
+  /** Características já selecionadas na etapa "Seu veículo" do cadastro. */
+  vehicleCharacteristics?: VehicleCharacteristic[];
+  /** Acessibilidade já selecionada na etapa "Seu veículo" do cadastro. */
+  vehicleAccessibilityFeatures?: VehicleAccessibilityFeature[];
   /** Aceite da Política de Privacidade + Termos de Uso (LGPD). */
   acceptedTerms: boolean;
 }

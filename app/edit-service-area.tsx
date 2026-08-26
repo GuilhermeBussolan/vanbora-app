@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppHeader, Button, Input, Screen, SchoolRegisterModal } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { getMyProfile, updateServiceArea } from '@/api/transporter';
+import { foldForCompare, titleCase } from '@/lib/textNormalize';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
 
@@ -102,13 +103,12 @@ export default function EditServiceAreaScreen() {
       <SchoolRegisterModal
         visible={schoolModalOpen}
         onClose={() => setSchoolModalOpen(false)}
-        onAdded={(schoolName) =>
+        onAdded={(schoolName) => {
+          const value = titleCase(schoolName);
           setSchools((prev) =>
-            prev.some((s) => s.toLowerCase() === schoolName.toLowerCase())
-              ? prev
-              : [...prev, schoolName],
-          )
-        }
+            prev.some((s) => foldForCompare(s) === foldForCompare(value)) ? prev : [...prev, value],
+          );
+        }}
       />
     </Screen>
   );
@@ -131,9 +131,9 @@ function EditableList({
   const [draft, setDraft] = useState('');
 
   function add() {
-    const value = draft.trim();
+    const value = titleCase(draft);
     if (!value) return;
-    if (!items.some((i) => i.toLowerCase() === value.toLowerCase())) {
+    if (!items.some((i) => foldForCompare(i) === foldForCompare(value))) {
       onChange([...items, value]);
     }
     setDraft('');

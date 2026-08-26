@@ -239,6 +239,24 @@ export interface DependentDto {
   photoUrl: string | null;
 }
 
+/** Recursos/opcionais do veículo (lista estruturada — ver src/lib/vehicleFeatures.ts para rótulos/ícones). */
+export type VehicleCharacteristic =
+  | 'AIR_CONDITIONING'
+  | 'TV'
+  | 'COMFORTABLE_SEATS'
+  | 'CHILD_SEAT'
+  | 'SOUND_SYSTEM'
+  | 'SEATBELT_ALL_SEATS'
+  | 'FREQUENT_SANITIZATION'
+  | 'CHILD_LOCK_WINDOWS';
+
+/** Recursos de acessibilidade do veículo — independentes das características gerais. */
+export type VehicleAccessibilityFeature =
+  | 'WHEELCHAIR_ADAPTED'
+  | 'WHEELCHAIR_SPACE'
+  | 'ACCESSIBLE_BOARDING_EQUIPMENT'
+  | 'TRANSPORTS_STUDENTS_WITH_DISABILITY';
+
 /** Ajudante/monitor do transportador. */
 export interface HelperDto {
   id: number;
@@ -285,6 +303,10 @@ export interface TransporterProfileDto {
   contractTemplate: string | null;
   /** Descrição/biografia do transportador. */
   bio: string | null;
+  /** Fotos do veículo, em ordem (0 = principal); use mediaUrl(). Máx. 3. */
+  vehiclePhotoUrls: string[];
+  vehicleCharacteristics: VehicleCharacteristic[];
+  vehicleAccessibilityFeatures: VehicleAccessibilityFeature[];
 }
 
 /** Janela agendada de compartilhamento (dayOfWeek ISO 1=seg…7=dom; horas "HH:mm"). */
@@ -363,6 +385,10 @@ export interface TransporterDetailDto {
   acceptsProposals: boolean;
   helpers: HelperDto[];
   reviews: TransporterReviewDto[];
+  /** Fotos do veículo, em ordem (0 = principal); use mediaUrl(). Máx. 3. */
+  vehiclePhotoUrls: string[];
+  vehicleCharacteristics: VehicleCharacteristic[];
+  vehicleAccessibilityFeatures: VehicleAccessibilityFeature[];
 }
 
 // ----- Contratação pela plataforma -----

@@ -97,7 +97,6 @@ function ThemedStack() {
         <Stack.Screen name="edit-bio" />
         <Stack.Screen name="guardian-profile/[id]" />
         <Stack.Screen name="cancelled-contracts" />
-        <Stack.Screen name="finance-detail" />
         <Stack.Screen name="add-revenue" />
         <Stack.Screen name="hire/[id]" />
         <Stack.Screen name="counter-proposal/[id]" />

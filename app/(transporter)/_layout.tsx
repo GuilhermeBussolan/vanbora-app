@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { router, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
@@ -42,6 +42,19 @@ export default function TransporterLayout() {
       />
       <Tabs.Screen
         name="finance"
+        listeners={({ navigation }) => ({
+          // O Financeiro agora tem uma Stack interna (Visão geral/Recebimentos/Despesas/...).
+          // Tocar de novo na aba já ativa dispara por padrão um POP_TO_TOP que essa Stack não
+          // aceita (troca de visão usa router.replace, sem histórico empilhado) — sem isto, o
+          // React Navigation loga "action not handled by any navigator". Em vez do padrão,
+          // volta explicitamente para a Visão geral.
+          tabPress: (e) => {
+            if (navigation.isFocused()) {
+              e.preventDefault();
+              router.replace('/(transporter)/finance');
+            }
+          },
+        })}
         options={{
           title: 'Financeiro',
           tabBarIcon: ({ color, size }) => <Ionicons name="cash-outline" size={size} color={color} />,
