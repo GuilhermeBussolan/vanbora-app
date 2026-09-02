@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppHeader, Button, ConsentCheckbox, Input, Screen, StepProgress } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { registerTransporter } from '@/api/auth';
+import { clearSignupDraft, getSignupDraft } from '@/state/signupDraft';
 import { addVehiclePhoto } from '@/api/transporter';
 import { UploadFile } from '@/api/client';
 import { parseAmount } from '../add-expense';
@@ -24,11 +25,13 @@ export default function RegisterTransporterZonesScreen() {
     document?: string;
     cnh?: string;
     plate?: string;
-    password: string;
     vehicleCharacteristics?: string;
     vehicleAccessibilityFeatures?: string;
     vehiclePhotos?: string;
   }>();
+  // Credencial do cadastro (senha digitada na etapa 1 ou ticket do login social):
+  // fica fora dos parâmetros de rota. Ver `@/state/signupDraft`.
+  const draft = getSignupDraft();
 
   const vehicleCharacteristics: VehicleCharacteristic[] = step1.vehicleCharacteristics
     ? JSON.parse(step1.vehicleCharacteristics)
@@ -65,7 +68,8 @@ export default function RegisterTransporterZonesScreen() {
       const session = await registerTransporter({
         name: step1.name,
         email: step1.email,
-        password: step1.password,
+        password: draft.password,
+        socialTicket: draft.socialTicket,
         phone: step1.phone,
         document: step1.document || undefined,
         cnh: step1.cnh || undefined,
@@ -77,6 +81,7 @@ export default function RegisterTransporterZonesScreen() {
         vehicleAccessibilityFeatures,
         acceptedTerms: accepted,
       });
+      clearSignupDraft();
       await applySession(session);
       // Fotos são enviadas só agora (precisam de um token, que só existe após o cadastro).
       // Melhor esforço: uma falha de upload não deve impedir a conclusão do cadastro.

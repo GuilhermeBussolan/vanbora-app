@@ -39,7 +39,8 @@
         {
           "locationWhenInUsePermission": "O VanBora usa sua localização para mostrar a van em tempo real no mapa."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": false

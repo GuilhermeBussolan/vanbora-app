@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppHeader, Button, Input, Screen, StepProgress } from '@/components';
+import { getSignupDraft, updateSignupDraft } from '@/state/signupDraft';
 import {
   formatCnh,
   formatCpf,
@@ -19,11 +20,15 @@ import type { ThemeColors, Typography } from '@/theme';
 /** Cadastro do transportador — Etapa 1: dados pessoais, veículo e senha. */
 export default function RegisterTransporterScreen() {
   const { colors, typography, styles } = useThemedScreen(createStyles);
+  // Cadastro vindo do Google/Facebook: nome e e-mail já vêm do provedor e não há
+  // senha a criar. Lido só no primeiro render, para não desfazer edições.
+  const [social] = useState(() => getSignupDraft());
+  const isSocial = Boolean(social.socialTicket);
   const [form, setForm] = useState({
-    name: '',
+    name: social.name ?? '',
     phone: '',
     document: '',
-    email: '',
+    email: social.email ?? '',
     cnh: '',
     plate: '',
     password: '',
@@ -59,15 +64,21 @@ export default function RegisterTransporterScreen() {
       setError('Placa inválida. Use até 7 caracteres (letras e números).');
       return;
     }
-    if (form.password.length < 6) {
-      setError('A senha deve ter ao menos 6 caracteres.');
-      return;
+    if (!isSocial) {
+      if (form.password.length < 6) {
+        setError('A senha deve ter ao menos 6 caracteres.');
+        return;
+      }
+      if (form.password !== form.confirmPassword) {
+        setError('As senhas não conferem.');
+        return;
+      }
     }
-    if (form.password !== form.confirmPassword) {
-      setError('As senhas não conferem.');
-      return;
-    }
-    // Leva os dados da etapa 1 para a etapa 2 (veículo).
+    // A senha fica fora dos parâmetros de rota: eles viram query string (visível
+    // na barra de endereços na web) e entram no estado de navegação registrado em
+    // logs. Ver `@/state/signupDraft`.
+    updateSignupDraft({ password: isSocial ? undefined : form.password });
+    // Leva os demais dados da etapa 1 para a etapa 2 (veículo).
     router.push({
       pathname: '/(auth)/register-transporter-vehicle',
       params: {
@@ -77,7 +88,6 @@ export default function RegisterTransporterScreen() {
         document: form.document.trim(),
         cnh: form.cnh.trim(),
         plate: form.plate.trim(),
-        password: form.password,
       },
     });
   }
@@ -110,6 +120,7 @@ export default function RegisterTransporterScreen() {
           keyboardType="email-address"
           value={form.email}
           onChangeText={update('email')}
+          editable={!isSocial}
         />
         <Input
           placeholder="CNH — 11 dígitos"
@@ -125,14 +136,30 @@ export default function RegisterTransporterScreen() {
           onChangeText={(v) => update('plate')(formatPlate(v))}
           maxLength={7}
         />
-        <Input placeholder="Senha" password value={form.password} onChangeText={update('password')} />
-        <Input
-          placeholder="Confirmar Senha"
-          password
-          value={form.confirmPassword}
-          onChangeText={update('confirmPassword')}
-        />
+        {!isSocial ? (
+          <>
+            <Input
+              placeholder="Senha"
+              password
+              value={form.password}
+              onChangeText={update('password')}
+            />
+            <Input
+              placeholder="Confirmar Senha"
+              password
+              value={form.confirmPassword}
+              onChangeText={update('confirmPassword')}
+            />
+          </>
+        ) : null}
       </View>
+
+      {isSocial ? (
+        <Text style={styles.socialHint}>
+          Conta conectada com {social.provider === 'facebook' ? 'Facebook' : 'Google'}. Você entra
+          por lá — não precisa criar senha.
+        </Text>
+      ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </Screen>
@@ -146,6 +173,12 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   },
   form: {
     gap: spacing.md,
+  },
+  socialHint: {
+    marginTop: spacing.md,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textSecondary,
   },
   error: {
     fontSize: 13,

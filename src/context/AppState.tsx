@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import React, {
   createContext,
@@ -11,16 +10,23 @@ import React, {
   useState,
 } from 'react';
 import { AuthResponse, login as apiLogin } from '@/api/auth';
-import { registerPushToken, removePushToken, updateOnboardingProgress } from '@/api/account';
+import {
+  logout as apiLogout,
+  registerPushToken,
+  removePushToken,
+  updateOnboardingProgress,
+} from '@/api/account';
+import { setSessionExpiredHandler } from '@/api/sessionExpiry';
 import { listDependents } from '@/api/dependents';
 import { registerForPushNotifications } from '@/lib/push';
+import { deleteSessionItem, getSessionItem, setSessionItem } from '@/lib/sessionStore';
 import { AuthUser, DependentDto, UserRole } from '@/types';
 
 /**
- * Chave da sessão no SecureStore (Keychain no iOS / Keystore no Android).
+ * Chave da sessão no armazenamento seguro (ver `@/lib/sessionStore`: Keychain no
+ * iOS, Keystore no Android, `sessionStorage` na web).
  * Antes ficava em AsyncStorage (texto plano, legível por qualquer código com
- * acesso ao sandbox do app); o JWT + dados do usuário agora ficam em
- * armazenamento seguro do sistema operacional.
+ * acesso ao sandbox do app).
  */
 const STORAGE_KEY = 'vanbora.session';
 /** Preferência de dependente selecionado — não é sensível, pode ficar no AsyncStorage. */
@@ -82,9 +88,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   // Token de push (Expo) do aparelho, para removê-lo do backend no logout.
   const pushTokenRef = useRef<string | null>(null);
 
-  // Restaura sessão persistida (SecureStore) ao iniciar.
+  // Restaura sessão persistida ao iniciar.
   useEffect(() => {
-    SecureStore.getItemAsync(STORAGE_KEY)
+    getSessionItem(STORAGE_KEY)
       .then((raw) => {
         if (!raw) return;
         const session = JSON.parse(raw) as StoredSession;
@@ -157,7 +163,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user);
     setRole(appRole);
     setHasTransporter(false);
-    await SecureStore.setItemAsync(
+    await setSessionItem(
       STORAGE_KEY,
       JSON.stringify({ token: response.token, user: response.user } satisfies StoredSession),
     );
@@ -169,10 +175,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (!token || !user || user.onboardingLastSeenVersion >= version) return;
       const updatedUser: AuthUser = { ...user, onboardingLastSeenVersion: version };
       setUser(updatedUser);
-      await SecureStore.setItemAsync(
+      await setSessionItem(
         STORAGE_KEY,
         JSON.stringify({ token, user: updatedUser } satisfies StoredSession),
-      ).catch(() => undefined);
+      );
       updateOnboardingProgress(token, version).catch(() => undefined);
     },
     [token, user],
@@ -186,11 +192,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [applySession],
   );
 
-  const logout = useCallback(() => {
-    // Desregistra o push deste aparelho antes de limpar a sessão (best-effort).
-    if (token && pushTokenRef.current) {
-      removePushToken(token, pushTokenRef.current).catch(() => undefined);
-    }
+  /** Apaga a sessão só do lado do app (sem falar com a API). */
+  const clearLocalSession = useCallback(() => {
     pushTokenRef.current = null;
     setToken(null);
     setUser(null);
@@ -198,8 +201,30 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setHasTransporter(false);
     setDependents([]);
     setSelectedDependentId(null);
-    SecureStore.deleteItemAsync(STORAGE_KEY).catch(() => undefined);
-  }, [token]);
+    deleteSessionItem(STORAGE_KEY);
+  }, []);
+
+  // Token vencido ou revogado: o cliente HTTP avisa e a sessão local cai. O guard
+  // de rota (app/_layout) leva de volta para a tela inicial assim que o token some.
+  // Não chamamos a API aqui: o token já não vale, e a chamada só voltaria 401.
+  useEffect(() => {
+    setSessionExpiredHandler(clearLocalSession);
+    return () => setSessionExpiredHandler(null);
+  }, [clearLocalSession]);
+
+  const logout = useCallback(() => {
+    if (token) {
+      // Desregistra o push deste aparelho antes de invalidar o token.
+      if (pushTokenRef.current) {
+        removePushToken(token, pushTokenRef.current).catch(() => undefined);
+      }
+      // Invalida o token no servidor: sem isso, uma cópia dele continuaria valendo
+      // até expirar, mesmo depois de o usuário sair da conta. Best-effort — se a
+      // rede falhar, a sessão local sai do mesmo jeito.
+      apiLogout(token).catch(() => undefined);
+    }
+    clearLocalSession();
+  }, [token, clearLocalSession]);
 
   const value = useMemo(
     () => ({

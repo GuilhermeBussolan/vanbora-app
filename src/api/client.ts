@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { notifySessionExpired } from './sessionExpiry';
 
 /**
  * Cliente HTTP mínimo para a API VanBora (Spring Boot).
@@ -66,6 +67,11 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   }
 
   if (!response.ok) {
+    // 401 com token enviado = a sessão acabou (expirou ou foi revogada). O 401 do
+    // login não passa por aqui: aquela chamada vai sem token.
+    if (response.status === 401 && token) {
+      notifySessionExpired();
+    }
     const message = await extractError(response);
     throw new ApiError(response.status, message);
   }
@@ -114,6 +120,9 @@ export async function apiUpload<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      notifySessionExpired();
+    }
     throw new ApiError(response.status, await extractError(response));
   }
   const text = await response.text();

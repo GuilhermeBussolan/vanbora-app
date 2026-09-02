@@ -27,7 +27,11 @@ yarn-error.*
 .DS_Store
 
 # Env
-.env*.local
+# Cuidado: tudo que começa com EXPO_PUBLIC_ é embutido no bundle e fica legível
+# por qualquer usuário do app — nunca coloque segredo com esse prefixo.
+.env
+.env.*
+!.env.example
 
 # Typescript
 *.tsbuildinfo

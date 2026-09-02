@@ -46,6 +46,16 @@ export function removePushToken(jwt: string, expoToken: string): Promise<void> {
   });
 }
 
+/**
+ * Encerra a sessão no servidor, invalidando este token.
+ *
+ * Apagar o token do aparelho não basta: o JWT é auto-contido e continuaria aceito
+ * até expirar. Só as sessões deste aparelho são afetadas.
+ */
+export function logout(token: string): Promise<void> {
+  return apiFetch<void>('/api/account/logout', { method: 'POST', token });
+}
+
 /** Registra que o usuário viu (ou dispensou) uma versão do guia de funcionalidades. */
 export function updateOnboardingProgress(token: string, seenVersion: number): Promise<void> {
   return apiFetch<void>('/api/account/onboarding', {

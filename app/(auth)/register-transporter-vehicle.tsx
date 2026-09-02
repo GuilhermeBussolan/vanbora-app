@@ -19,6 +19,8 @@ const MAX_PHOTOS = 3;
  */
 export default function RegisterTransporterVehicleScreen() {
   const { colors, typography, styles } = useThemedScreen(createStyles);
+  // A senha (ou o ticket do login social) não trafega por aqui — fica em
+  // `@/state/signupDraft`, fora dos parâmetros de rota. Ver a etapa 1.
   const step1 = useLocalSearchParams<{
     name: string;
     email: string;
@@ -26,7 +28,6 @@ export default function RegisterTransporterVehicleScreen() {
     document?: string;
     cnh?: string;
     plate?: string;
-    password: string;
   }>();
 
   const [photos, setPhotos] = useState<UploadFile[]>([]);

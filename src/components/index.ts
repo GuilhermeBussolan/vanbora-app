@@ -18,3 +18,4 @@ export { AppHeader } from './layout/AppHeader';
 export { SchoolPicker } from './feature/SchoolPicker';
 export { SchoolRegisterModal } from './feature/SchoolRegisterModal';
 export { ConsentCheckbox } from './feature/ConsentCheckbox';
+export { SocialAuthButtons } from './feature/SocialAuthButtons';

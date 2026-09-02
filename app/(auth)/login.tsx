@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { AppHeader, Button, Input, Logo, Screen } from '@/components';
+import { AppHeader, Button, Input, Logo, Screen, SocialAuthButtons } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { ApiError } from '@/api/client';
+import { clearSignupDraft } from '@/state/signupDraft';
 import { spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
 
@@ -24,6 +25,8 @@ export default function LoginScreen() {
     setLoading(true);
     setError(null);
     try {
+      // Um cadastro social abandonado não deve influenciar o login por senha.
+      clearSignupDraft();
       const role = await login(email.trim(), password);
       if (role === 'transporter') {
         router.replace('/(transporter)/home');
@@ -80,6 +83,8 @@ export default function LoginScreen() {
       </View>
 
       <Button label="Entrar" onPress={handleLogin} loading={loading} style={styles.submit} />
+
+      <SocialAuthButtons onError={(message) => setError(message || null)} />
 
       <Text style={styles.demoHint}>
         Demo · responsável: mariana@vanbora.com · transportador: roberto@vanbora.com · senha: 123456

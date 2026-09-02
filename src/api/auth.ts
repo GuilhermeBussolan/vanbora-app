@@ -16,6 +16,35 @@ export async function login(email: string, password: string): Promise<AuthRespon
   });
 }
 
+/** Dados públicos trazidos da conta social (Google/Facebook). */
+export interface SocialProfile {
+  email: string;
+  name?: string | null;
+  provider: string;
+}
+
+/**
+ * Resultado do login social. Dois desfechos:
+ *  - `registered: true` — já existe conta com esse e-mail; `session` vem pronta.
+ *  - `registered: false` — primeiro acesso: o app segue para a escolha de perfil
+ *    e o cadastro, com os campos preenchidos por `profile` e enviando
+ *    `signupTicket` no lugar da senha.
+ */
+export interface SocialAuthResponse {
+  registered: boolean;
+  session: AuthResponse | null;
+  profile: SocialProfile;
+  signupTicket: string | null;
+}
+
+/** Envia o id_token do Auth0 para a API validar e resolver a sessão. */
+export async function socialLogin(idToken: string): Promise<SocialAuthResponse> {
+  return apiFetch<SocialAuthResponse>('/api/auth/social', {
+    method: 'POST',
+    body: { idToken },
+  });
+}
+
 export interface AddressBody {
   cep?: string;
   street?: string;
@@ -27,7 +56,10 @@ export interface AddressBody {
 export interface RegisterGuardianBody {
   name: string;
   email: string;
-  password: string;
+  /** Senha do cadastro comum. Omitida quando vem `socialTicket`. */
+  password?: string;
+  /** Ticket do login social, que dispensa a criação de senha. */
+  socialTicket?: string;
   phone: string;
   cpf?: string;
   pickup: AddressBody;
@@ -45,7 +77,10 @@ export async function registerGuardian(body: RegisterGuardianBody): Promise<Auth
 export interface RegisterTransporterBody {
   name: string;
   email: string;
-  password: string;
+  /** Senha do cadastro comum. Omitida quando vem `socialTicket`. */
+  password?: string;
+  /** Ticket do login social, que dispensa a criação de senha. */
+  socialTicket?: string;
   phone: string;
   document?: string;
   cnh?: string;
