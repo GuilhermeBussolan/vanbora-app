@@ -6,13 +6,7 @@
     "orientation": "portrait",
     "scheme": "vanbora",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "icon": "./assets/brand/icon.png",
-    "splash": {
-      "backgroundColor": "#F5C518",
-      "resizeMode": "contain",
-      "image": "./assets/brand/logo-symbol-mono-black.png"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -40,7 +34,19 @@
           "locationWhenInUsePermission": "O VanBora usa sua localização para mostrar a van em tempo real no mapa."
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/logo-symbol-mono-black.png",
+          "backgroundColor": "#F5C518",
+          "resizeMode": "contain",
+          "imageWidth": 180
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false
