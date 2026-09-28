@@ -12,7 +12,9 @@ import {
   rejectCounterProposal,
 } from '@/api/hire';
 import { listGuardianNotices, removeReaction, setReaction } from '@/api/notices';
-import { GuardianNoticeDto, NOTICE_EMOJIS } from '@/types';
+import { GuardianNoticeDto, GuardianSafetyCheckDto, NOTICE_EMOJIS } from '@/types';
+import { listGuardianSafetyChecks } from '@/api/checklists';
+import { formatDate as formatDayMonthYear, formatTime } from '@/lib/dateFormat';
 import { useOnboardingGate } from '@/onboarding/useOnboardingGate';
 import { WhatsNewBanner } from '@/onboarding/WhatsNewBanner';
 import { formatCurrency } from '@/data/mockData';
@@ -34,11 +36,17 @@ export default function GuardianHomeScreen() {
   const [notices, setNotices] = useState<GuardianNoticeDto[]>([]);
   const onboarding = useOnboardingGate('guardian');
 
+  const [safetyCheck, setSafetyCheck] = useState<GuardianSafetyCheckDto | null>(null);
+
   const reloadDashboard = useCallback(() => {
     if (!token) return;
     getGuardianDashboard(token, selectedDependentId)
       .then(setDashboard)
       .catch(() => setDashboard(null));
+    // Última conferência de segurança da van nos percursos do filho selecionado.
+    listGuardianSafetyChecks(token, selectedDependentId)
+      .then((list) => setSafetyCheck(list[0] ?? null))
+      .catch(() => setSafetyCheck(null));
   }, [token, selectedDependentId]);
 
   useFocusEffect(reloadDashboard);
@@ -158,7 +166,7 @@ export default function GuardianHomeScreen() {
       ) : null}
 
       {dashboard?.hasTransporter ? (
-        <PopulatedDashboard dashboard={dashboard} />
+        <PopulatedDashboard dashboard={dashboard} safetyCheck={safetyCheck} />
       ) : dashboard?.pendingContractId ? (
         <PendingContractCard dashboard={dashboard} />
       ) : dashboard?.counterHireRequestId ? (
@@ -462,7 +470,13 @@ function NewNoticesSection({
   );
 }
 
-function PopulatedDashboard({ dashboard }: { dashboard: GuardianDashboardDto }) {
+function PopulatedDashboard({
+  dashboard,
+  safetyCheck,
+}: {
+  dashboard: GuardianDashboardDto;
+  safetyCheck: GuardianSafetyCheckDto | null;
+}) {
   const { colors, typography, styles } = useThemedScreen(createStyles);
   const next = dashboard.nextPayment;
   const firstName = dashboard.studentName?.split(' ')[0] ?? 'Seu filho';
@@ -531,6 +545,21 @@ function PopulatedDashboard({ dashboard }: { dashboard: GuardianDashboardDto }) 
           style={styles.avisarBtn}
         />
       </Card>
+
+      {/* Conferência de segurança pós-percurso (ninguém ficou na van) */}
+      {safetyCheck ? (
+        <Card style={styles.safetyBanner}>
+          <Ionicons name="shield-checkmark" size={22} color={colors.success} />
+          <View style={styles.flex}>
+            <Text style={styles.bannerTitle}>Verificação de segurança concluída</Text>
+            <Text style={styles.bannerText}>
+              A van foi conferida após o percurso {safetyCheck.tripName} —{' '}
+              {formatShortDateTime(safetyCheck.completedAt)}, por {safetyCheck.completedByName} (
+              {safetyCheck.completedByRole.toLowerCase()}).
+            </Text>
+          </View>
+        </Card>
+      ) : null}
 
       {/* Presença da semana (real) — toca para ver o histórico por semana */}
       <Pressable onPress={() => router.push('/attendance-history')}>
@@ -875,6 +904,13 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     backgroundColor: colors.brandSoft,
     borderColor: colors.brand,
   },
+  safetyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.successBg,
+    borderColor: colors.success,
+  },
   bannerBody: {
     flex: 1,
   },
@@ -1108,3 +1144,9 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     alignSelf: 'stretch',
   },
 });
+
+/** "hoje às 18:42" ou "24/09/2026 às 18:42". */
+function formatShortDateTime(iso: string): string {
+  const day = formatDayMonthYear(iso);
+  return `${day === formatDayMonthYear(new Date().toISOString()) ? 'hoje' : day} às ${formatTime(iso)}`;
+}

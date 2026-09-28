@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Badge, Button, Card, MapPlaceholder, Screen, VanboraMap } from '@/components';
+import { Badge, Button, Card, MapPlaceholder, Screen, SectionTitle, VanboraMap } from '@/components';
 import { MapPoint } from '@/components/ui/VanboraMap';
+import { TripsSection } from '@/components/feature/TripsSection';
 import { useAppState } from '@/context/AppState';
 import { useLocationBroadcast } from '@/hooks/useLocationBroadcast';
 import { getLocationSharing, getMyRoute, optimizeMyRoute } from '@/api/tracking';
@@ -198,6 +199,10 @@ export default function RoutesScreen() {
         </Card>
       </Pressable>
 
+      <View style={styles.tripsSection}>
+        <TripsSection manageable />
+      </View>
+
       {permission === 'denied' && active ? (
         <Text style={styles.warn}>
           Localização negada — permita o acesso para aparecer no mapa dos responsáveis.
@@ -205,6 +210,7 @@ export default function RoutesScreen() {
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
+      <SectionTitle title="Paradas de hoje" style={styles.stopsTitle} />
       {loading ? (
         <ActivityIndicator color={colors.brand} style={styles.loader} />
       ) : (
@@ -345,6 +351,8 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     gap: spacing.md,
     marginBottom: spacing.md,
   },
+  tripsSection: { marginTop: spacing.sm, marginBottom: spacing.md },
+  stopsTitle: { marginBottom: spacing.md },
   shareInfo: { flex: 1 },
   shareTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   shareStatus: { fontSize: 12, fontWeight: '600', marginTop: 2 },

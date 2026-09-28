@@ -34,6 +34,13 @@
           "locationWhenInUsePermission": "O VanBora usa sua localização para mostrar a van em tempo real no mapa."
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "O VanBora usa a câmera para registrar a foto do interior da van no checklist de segurança.",
+          "photosPermission": "O VanBora acessa suas fotos para você escolher imagens de perfil e do veículo."
+        }
+      ],
       "expo-web-browser",
       "expo-secure-store",
       "expo-sharing",

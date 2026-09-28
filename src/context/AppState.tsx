@@ -70,7 +70,9 @@ const AppStateContext = createContext<AppState | undefined>(undefined);
 
 /** Converte o papel da API (maiúsculas) para o usado no app. */
 function toAppRole(apiRole: AuthUser['role']): UserRole {
-  return apiRole === 'TRANSPORTER' ? 'transporter' : 'guardian';
+  if (apiRole === 'TRANSPORTER') return 'transporter';
+  if (apiRole === 'MONITOR') return 'monitor';
+  return 'guardian';
 }
 
 /**

@@ -3,7 +3,7 @@
  * Mapeiam as entidades que futuramente virão do backend (Java/Spring + MySQL).
  */
 
-export type UserRole = 'guardian' | 'transporter';
+export type UserRole = 'guardian' | 'transporter' | 'monitor';
 
 export type PaymentStatus = 'paid' | 'pending' | 'overdue';
 
@@ -93,7 +93,7 @@ export interface RouteStop {
 // ----- Integração com a API (mapa em tempo real) -----
 
 /** Papel do usuário como serializado pelo backend (enum em maiúsculas). */
-export type ApiUserRole = 'GUARDIAN' | 'TRANSPORTER';
+export type ApiUserRole = 'GUARDIAN' | 'TRANSPORTER' | 'MONITOR';
 
 /** Usuário autenticado retornado pela API. */
 export interface AuthUser {
@@ -202,6 +202,17 @@ export interface ConversationDto {
   unread: number;
   /** Id do perfil do transportador (abrir o perfil pelo chat). */
   transporterId: number;
+  /** Há monitores na conversa (grupo formado após a contratação). */
+  group: boolean;
+  /** Participantes atuais: responsável, transportador e monitores vinculados. */
+  participants: ChatParticipantDto[];
+}
+
+export interface ChatParticipantDto {
+  userId: number;
+  name: string;
+  /** "Responsável", "Transportador" ou "Monitor". */
+  role: string;
 }
 
 /** Mensagem do histórico (REST) — `fromMe` já calculado pelo backend. */
@@ -215,6 +226,10 @@ export interface MessageDto {
   type: MessageType;
   /** URL da imagem quando type=IMAGE (relativa; use mediaUrl()). */
   mediaUrl: string | null;
+  /** Autor (identifica quem escreveu no grupo). */
+  senderName?: string;
+  /** "Responsável", "Transportador" ou "Monitor". */
+  senderRole?: string;
 }
 
 /** Mensagem difundida pelo WebSocket — neutra; o cliente calcula `fromMe`. */
@@ -227,6 +242,7 @@ export interface ChatBroadcastDto {
   senderName: string;
   type: MessageType;
   mediaUrl: string | null;
+  senderRole?: string;
 }
 
 // ----- Perfil -----
@@ -266,6 +282,13 @@ export interface HelperDto {
   photoUrl: string | null;
   /** Ativo no perfil público. */
   active: boolean;
+  /** Tem conta de monitor no app (só na visão do próprio transportador). */
+  hasAccess?: boolean;
+  /** A conta de acesso está habilitada (ajudante ativo + conta ativa). */
+  accessActive?: boolean;
+  /** E-mail de login do monitor (só na visão do próprio transportador). */
+  email?: string | null;
+  phone?: string | null;
 }
 
 /** Perfil próprio do transportador (tela "Meu Perfil"). */
@@ -524,4 +547,110 @@ export interface PriceZone {
   name: string;
   neighborhoods: string[];
   monthlyFee: string;
+}
+
+// ----- Percursos, checklist de segurança e monitor -----
+
+export type TripRunStatus = 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type ChecklistStatus = 'PENDING' | 'COMPLETED';
+
+/** Execução de um percurso (iniciado → encerrado/cancelado) e o checklist gerado. */
+export interface TripRunDto {
+  id: number;
+  tripId: number;
+  status: TripRunStatus;
+  serviceDate: string;
+  startedAt: string;
+  finishedAt: string | null;
+  startedByName: string | null;
+  finishedByName: string | null;
+  checklistId: number | null;
+  checklistStatus: ChecklistStatus | null;
+}
+
+export interface TripMonitorDto {
+  helperId: number;
+  name: string;
+  photoUrl: string | null;
+  accessActive: boolean;
+}
+
+/** Percurso (ex.: "Ida — manhã") com monitores escalados e alunos. */
+export interface TripDto {
+  id: number;
+  name: string;
+  allStudents: boolean;
+  studentCount: number;
+  monitors: TripMonitorDto[];
+  /** Alunos escolhidos (só para o transportador; null = todos ou visão do monitor). */
+  studentIds: number[] | null;
+  currentRun: TripRunDto | null;
+}
+
+export interface ChecklistItemDto {
+  code: string;
+  label: string;
+  confirmed: boolean;
+}
+
+export interface ChecklistPhotoDto {
+  id: number;
+  /** URL assinada e temporária (use mediaUrl()); null quando a foto já expirou. */
+  url: string | null;
+  available: boolean;
+  uploadedAt: string;
+}
+
+/** Checklist de segurança pós-percurso — o mesmo para motorista e monitor. */
+export interface SafetyChecklistDto {
+  id: number;
+  runId: number;
+  tripId: number;
+  tripName: string;
+  serviceDate: string;
+  tripFinishedAt: string | null;
+  status: ChecklistStatus;
+  completedByName: string | null;
+  completedByRole: string | null;
+  completedAt: string | null;
+  completedByMe: boolean;
+  items: ChecklistItemDto[];
+  photos: ChecklistPhotoDto[];
+  photoCount: number;
+  photosPurgeAt: string | null;
+  photosPurgedAt: string | null;
+  guardiansNotified: number | null;
+}
+
+/** Conferência concluída no percurso do filho (visão do responsável, sem fotos). */
+export interface GuardianSafetyCheckDto {
+  id: number;
+  tripName: string;
+  tripFinishedAt: string | null;
+  completedAt: string;
+  completedByName: string;
+  completedByRole: string;
+}
+
+/** Perfil do monitor autenticado. */
+export interface MonitorProfileDto {
+  name: string;
+  email: string;
+  phone: string;
+  photoUrl: string | null;
+  transporterName: string;
+  transporterPhone: string;
+  vehiclePlate: string | null;
+  trips: { id: number; name: string }[];
+}
+
+/** Aluno dos percursos do monitor (sem dados financeiros). */
+export interface MonitorStudentDto {
+  id: number;
+  name: string;
+  school: string;
+  guardianName: string;
+  neighborhood: string | null;
+  presentToday: boolean;
+  trips: string[];
 }

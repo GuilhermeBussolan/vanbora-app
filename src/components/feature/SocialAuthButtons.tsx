@@ -12,6 +12,7 @@ import {
   SocialLoginCancelled,
   SocialProvider,
 } from '@/lib/auth0';
+import { homeRouteFor } from '@/lib/roleHome';
 import { startSignupDraft } from '@/state/signupDraft';
 import { spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
@@ -49,12 +50,8 @@ export function SocialAuthButtons({ onError }: SocialAuthButtonsProps) {
 
       if (result.registered && result.session) {
         const role = await applySession(result.session);
-        if (role === 'transporter') {
-          router.replace('/(transporter)/home');
-        } else {
-          setHasTransporter(true);
-          router.replace('/(guardian)/home');
-        }
+        if (role === 'guardian') setHasTransporter(true);
+        router.replace(homeRouteFor(role));
         return;
       }
 

@@ -220,6 +220,10 @@ function HelperRow({ helper }: { helper: HelperDto }) {
             role: helper.role,
             active: helper.active ? '1' : '0',
             photoUrl: helper.photoUrl ?? '',
+            hasAccess: helper.hasAccess ? '1' : '0',
+            accessActive: helper.accessActive ? '1' : '0',
+            email: helper.email ?? '',
+            phone: helper.phone ?? '',
           },
         })
       }
@@ -228,7 +232,10 @@ function HelperRow({ helper }: { helper: HelperDto }) {
         <Avatar name={helper.name} size={40} tone="neutral" uri={mediaUrl(helper.photoUrl)} />
         <View style={styles.helperInfo}>
           <Text style={styles.helperName}>{helper.name}</Text>
-          <Text style={styles.helperRole}>{helper.role}</Text>
+          <Text style={styles.helperRole}>
+            {helper.role}
+            {helper.hasAccess ? (helper.accessActive ? ' • acesso ao app' : ' • acesso desativado') : ''}
+          </Text>
         </View>
         {!helper.active ? (
           <View style={styles.inactiveBadge}>

@@ -6,12 +6,14 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppStateProvider, useAppState } from '@/context/AppState';
+import { homeRouteFor } from '@/lib/roleHome';
+import { UserRole } from '@/types';
 import { ThemeProvider, useTheme } from '@/theme';
 
 /**
- * Guard central de rota: um Responsável não pode navegar (nem por deep link)
- * para telas de `(transporter)`, um Transportador não pode acessar `(guardian)`,
- * e ninguém sem sessão acessa qualquer uma das duas — sem depender apenas da UI
+ * Guard central de rota: cada perfil só navega (nem por deep link) na própria área —
+ * `(guardian)`, `(transporter)` ou `(monitor)` — e ninguém sem sessão acessa
+ * qualquer uma delas — sem depender apenas da UI
  * não linkar para lá. A checagem real de permissão continua no backend; isto é
  * só a camada de defesa em profundidade no cliente.
  */
@@ -24,18 +26,21 @@ function useRouteGuard() {
     if (!sessionRestored) return;
 
     const group = segments[0];
-    const inGuardianArea = group === '(guardian)';
-    const inTransporterArea = group === '(transporter)';
-    if (!inGuardianArea && !inTransporterArea) return;
+    const areaRole: Record<string, UserRole> = {
+      '(guardian)': 'guardian',
+      '(transporter)': 'transporter',
+      '(monitor)': 'monitor',
+    };
+    const area = group ? areaRole[group] : undefined;
+    if (!area) return;
 
     if (!token) {
       router.replace('/(auth)/welcome');
       return;
     }
-    if (role === 'guardian' && inTransporterArea) {
-      router.replace('/(guardian)/home');
-    } else if (role === 'transporter' && inGuardianArea) {
-      router.replace('/(transporter)/home');
+    // Cada perfil só navega na própria área (o monitor não entra em telas do transportador).
+    if (role && role !== area) {
+      router.replace(homeRouteFor(role));
     }
   }, [segments, token, role, sessionRestored]);
 }
@@ -51,8 +56,13 @@ function ThemedStack() {
       const data = response.notification.request.content.data as {
         type?: string;
         contractId?: number | string;
+        checklistId?: number | string;
       };
-      if (data?.type === 'CONTRACT_RELEASED' && data.contractId != null) {
+      if (data?.type === 'SAFETY_CHECK_PENDING' && data.checklistId != null) {
+        router.push(`/safety-checklist/${data.checklistId}`);
+      } else if (data?.type === 'SAFETY_CHECK_COMPLETED') {
+        router.push('/(guardian)/home');
+      } else if (data?.type === 'CONTRACT_RELEASED' && data.contractId != null) {
         router.push(`/contract/${data.contractId}`);
       } else if (
         data?.type === 'HIRE_REQUEST' ||
@@ -82,6 +92,11 @@ function ThemedStack() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(guardian)" />
         <Stack.Screen name="(transporter)" />
+        <Stack.Screen name="(monitor)" />
+        <Stack.Screen name="safety-checklist/[id]" />
+        <Stack.Screen name="safety-checklists" />
+        <Stack.Screen name="trips" />
+        <Stack.Screen name="edit-trip" />
         <Stack.Screen name="chat/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="transporter/[id]" />
         <Stack.Screen name="contract/[id]" />

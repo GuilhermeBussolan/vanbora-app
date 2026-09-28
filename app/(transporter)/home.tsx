@@ -7,7 +7,8 @@ import { useAppState } from '@/context/AppState';
 import { listHireRequests, releaseContract, rejectHireRequest } from '@/api/hire';
 import { listMyNotices } from '@/api/notices';
 import { getDashboard, DashboardMetrics } from '@/api/dashboard';
-import { HireRequestDto, TransporterNoticeDto } from '@/types';
+import { listChecklists } from '@/api/checklists';
+import { HireRequestDto, SafetyChecklistDto, TransporterNoticeDto } from '@/types';
 import { useOnboardingGate } from '@/onboarding/useOnboardingGate';
 import { WhatsNewBanner } from '@/onboarding/WhatsNewBanner';
 import { currentTransporterName, formatCurrency } from '@/data/mockData';
@@ -21,6 +22,7 @@ export default function TransporterHomeScreen() {
   const onboarding = useOnboardingGate('transporter');
   const [requests, setRequests] = useState<HireRequestDto[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [pendingChecks, setPendingChecks] = useState<SafetyChecklistDto[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +32,7 @@ export default function TransporterHomeScreen() {
       .then(setRequests)
       .catch((err) => setError(err?.message ?? 'Falha ao carregar solicitações.'));
     getDashboard(token).then(setMetrics).catch(() => undefined);
+    listChecklists(token, 'PENDING').then(setPendingChecks).catch(() => setPendingChecks([]));
   }, [token]);
 
   useFocusEffect(loadData);
@@ -81,6 +84,19 @@ export default function TransporterHomeScreen() {
           onDismiss={onboarding.dismissNew}
         />
       ) : null}
+
+      {pendingChecks.map((c) => (
+        <Pressable key={c.id} onPress={() => router.push(`/safety-checklist/${c.id}`)}>
+          <Card style={styles.safetyCard}>
+            <Ionicons name="warning-outline" size={20} color={colors.warning} />
+            <View style={styles.safetyInfo}>
+              <Text style={styles.safetyTitle}>⚠️ Verificação de segurança pendente</Text>
+              <Text style={styles.safetyText}>{c.tripName} — confira a van e registre a foto.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Card>
+        </Pressable>
+      ))}
 
       <View style={styles.metrics}>
         {metricCards.map((m) => (
@@ -280,6 +296,17 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   greeting: {
     marginBottom: spacing.xl,
   },
+  safetyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderColor: colors.warning,
+    backgroundColor: colors.warningBg,
+    marginBottom: spacing.md,
+  },
+  safetyInfo: { flex: 1 },
+  safetyTitle: { fontSize: 14, fontWeight: '800', color: colors.textPrimary },
+  safetyText: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   metrics: {
     flexDirection: 'row',
     gap: spacing.md,
