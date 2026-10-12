@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Avatar, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { listConversations } from '@/api/chat';
@@ -9,7 +10,7 @@ import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
 
 /**
- * Lista de conversas, reutilizada pelos perfis Responsável e Transportador.
+ * Lista de conversas, reutilizada pelos perfis Responsável, Transportador e Monitor.
  * Carrega as conversas reais da API.
  */
 export function ChatList() {
@@ -47,13 +48,19 @@ export function ChatList() {
               style={styles.row}
               onPress={() =>
                 router.push(
-                  `/chat/${chat.id}?name=${encodeURIComponent(chat.name)}&transporterId=${chat.transporterId}`,
+                  `/chat/${chat.id}?name=${encodeURIComponent(chat.name)}&transporterId=${chat.transporterId}` +
+                    (chat.group ? `&members=${encodeURIComponent(membersLabel(chat))}` : ''),
                 )
               }
             >
               <Avatar name={chat.name} size={48} />
               <View style={styles.info}>
-                <Text style={typography.cardTitle}>{chat.name}</Text>
+                <View style={styles.nameRow}>
+                  <Text style={typography.cardTitle}>{chat.name}</Text>
+                  {chat.group ? (
+                    <Ionicons name="people-outline" size={14} color={colors.textSecondary} />
+                  ) : null}
+                </View>
                 <Text style={styles.last} numberOfLines={1}>
                   {chat.lastMessage}
                 </Text>
@@ -74,8 +81,18 @@ export function ChatList() {
   );
 }
 
+/** "Mariana (Responsável), Roberto (Transportador), Carlos (Monitor)" — cabeçalho do grupo. */
+function membersLabel(chat: ConversationDto): string {
+  return chat.participants.map((p) => `${p.name.split(' ')[0]} (${p.role})`).join(', ');
+}
+
 const createStyles = (colors: ThemeColors, typography: Typography) =>
   StyleSheet.create({
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   title: {
     marginBottom: spacing.lg,
   },

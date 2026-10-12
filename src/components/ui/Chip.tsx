@@ -10,18 +10,28 @@ interface ChipProps {
   selected?: boolean;
   /** Exibe um X para remoção (ex.: bairros da zona). */
   removable?: boolean;
+  /** Ícone opcional antes do rótulo (ex.: recursos do veículo). */
+  icon?: keyof typeof Ionicons.glyphMap;
   onPress?: () => void;
   onRemove?: () => void;
 }
 
-/** Chip de filtro / tag (bairros, escolas, filtros de lista). */
-export function Chip({ label, selected = false, removable = false, onPress, onRemove }: ChipProps) {
+/** Chip de filtro / tag (bairros, escolas, filtros de lista, recursos do veículo). */
+export function Chip({ label, selected = false, removable = false, icon, onPress, onRemove }: ChipProps) {
   const { colors, typography, styles } = useThemedScreen(createStyles);
   return (
     <Pressable
       onPress={onPress}
       style={[styles.chip, selected ? styles.selected : styles.unselected]}
     >
+      {icon ? (
+        <Ionicons
+          name={icon}
+          size={13}
+          color={selected ? colors.textOnBrand : colors.textSecondary}
+          style={styles.icon}
+        />
+      ) : null}
       <Text style={[styles.text, selected && styles.textSelected]}>{label}</Text>
       {removable ? (
         <Pressable onPress={onRemove} hitSlop={6} style={styles.removeBtn}>
@@ -50,6 +60,9 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  icon: {
+    marginRight: 5,
   },
   text: {
     fontSize: 13,

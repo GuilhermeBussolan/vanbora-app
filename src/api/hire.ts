@@ -48,6 +48,29 @@ export function rejectHireRequest(token: string, hireRequestId: number): Promise
   return apiFetch<void>(`/api/hire-requests/${hireRequestId}/reject`, { method: 'POST', token });
 }
 
+/** [Transportador] Contrapropõe outro valor em resposta à proposta do responsável. */
+export function counterProposeHireRequest(
+  token: string,
+  hireRequestId: number,
+  fee: number,
+): Promise<void> {
+  return apiFetch<void>(`/api/hire-requests/${hireRequestId}/counter`, {
+    method: 'POST',
+    body: { fee },
+    token,
+  });
+}
+
+/** [Responsável] Aceita a contraproposta do transportador — segue para o contrato. */
+export function acceptCounterProposal(token: string, hireRequestId: number): Promise<void> {
+  return apiFetch<void>(`/api/hire-requests/${hireRequestId}/accept-counter`, { method: 'POST', token });
+}
+
+/** [Responsável] Recusa a contraproposta do transportador. */
+export function rejectCounterProposal(token: string, hireRequestId: number): Promise<void> {
+  return apiFetch<void>(`/api/hire-requests/${hireRequestId}/reject-counter`, { method: 'POST', token });
+}
+
 /** [Responsável] Cancela a própria solicitação pendente (some da tela do transportador). */
 export function cancelHireRequest(token: string, hireRequestId: number): Promise<void> {
   return apiFetch<void>(`/api/hire-requests/${hireRequestId}/cancel`, { method: 'POST', token });

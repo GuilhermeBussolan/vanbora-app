@@ -24,14 +24,20 @@ import { MessageDto, NOTICE_EMOJIS } from '@/types';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
 
-/** Conversa individual em tempo real (WebSocket) — compartilhada pelos dois perfis. */
+/**
+ * Conversa em tempo real (WebSocket) — compartilhada pelos perfis. Após a contratação vira
+ * grupo (responsável, transportador e monitores do percurso) e cada mensagem mostra o autor.
+ */
 export default function ChatScreen() {
   const { colors, typography, styles } = useThemedScreen(createStyles);
-  const { id, name, transporterId } = useLocalSearchParams<{
+  const { id, name, transporterId, members } = useLocalSearchParams<{
     id: string;
     name?: string;
     transporterId?: string;
+    /** Participantes do grupo (após a contratação), para o cabeçalho. */
+    members?: string;
   }>();
+  const isGroup = !!members;
   const conversationId = Number(id);
   const { token, user, role } = useAppState();
 
@@ -87,6 +93,8 @@ export default function ChatScreen() {
         fromMe,
         type: broadcast.type,
         mediaUrl: broadcast.mediaUrl,
+        senderName: broadcast.senderName,
+        senderRole: broadcast.senderRole,
       });
       // Mensagem recebida com a conversa aberta = já lida (mantém o badge zerado).
       if (!fromMe) {
@@ -128,6 +136,11 @@ export default function ChatScreen() {
           <Avatar name={name ?? 'Conversa'} size={40} />
           <View style={styles.headerInfo}>
             <Text style={typography.cardTitle}>{name ?? 'Conversa'}</Text>
+            {isGroup ? (
+              <Text style={styles.members} numberOfLines={1}>
+                {members}
+              </Text>
+            ) : null}
             <Text style={[styles.status, connected ? styles.online : styles.offline]}>
               {connected ? 'Online' : 'Conectando…'}
             </Text>
@@ -154,6 +167,13 @@ export default function ChatScreen() {
               key={msg.id}
               style={[styles.bubble, msg.fromMe ? styles.bubbleMine : styles.bubbleTheirs]}
             >
+              {isGroup && !msg.fromMe && msg.senderName ? (
+                // Em grupo, identifica quem escreveu (responsável, transportador ou monitor).
+                <Text style={styles.sender}>
+                  {msg.senderName}
+                  {msg.senderRole ? ` · ${msg.senderRole}` : ''}
+                </Text>
+              ) : null}
               {msg.type === 'IMAGE' && msg.mediaUrl ? (
                 <Image source={{ uri: mediaUrl(msg.mediaUrl) }} style={styles.bubbleImage} />
               ) : (
@@ -254,6 +274,16 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   },
   status: {
     fontSize: 12,
+  },
+  members: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  sender: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.brandDark,
+    marginBottom: 2,
   },
   online: {
     color: colors.success,

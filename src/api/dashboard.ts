@@ -23,6 +23,8 @@ export interface StudentDto {
   financeStatus: string;
   /** Vai hoje (presença do dia; fim de semana conta como presente). */
   presentToday: boolean;
+  /** Id do dependente (aluno), usado na escolha dos alunos de um percurso. */
+  dependentId: number;
 }
 
 export function getDashboard(token: string): Promise<DashboardMetrics> {

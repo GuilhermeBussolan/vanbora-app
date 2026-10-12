@@ -1,4 +1,16 @@
 import Constants from 'expo-constants';
+import { notifySessionExpired } from './sessionExpiry';
+import { DEMO } from '@/demo/demoMode';
+import { demoRequest } from '@/demo/demoApi';
+
+/** Modo demonstração (portfólio): responde com dados gravados, sem rede. */
+async function demoCall<T>(path: string, method: string, body?: unknown): Promise<T> {
+  try {
+    return await demoRequest<T>(path, method, body);
+  } catch (e) {
+    throw new ApiError(409, e instanceof Error ? e.message : 'Indisponível na demonstração.');
+  }
+}
 
 /**
  * Cliente HTTP mínimo para a API VanBora (Spring Boot).
@@ -49,6 +61,7 @@ interface RequestOptions {
 /** Faz uma requisição à API e devolve o JSON tipado (ou `undefined` em 204). */
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, token } = options;
+  if (DEMO) return demoCall<T>(path, method, body);
 
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -66,6 +79,11 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   }
 
   if (!response.ok) {
+    // 401 com token enviado = a sessão acabou (expirou ou foi revogada). O 401 do
+    // login não passa por aqui: aquela chamada vai sem token.
+    if (response.status === 401 && token) {
+      notifySessionExpired();
+    }
     const message = await extractError(response);
     throw new ApiError(response.status, message);
   }
@@ -92,27 +110,65 @@ export interface UploadFile {
 }
 
 /** Envia um arquivo (campo `file`) via multipart e devolve o JSON tipado. */
-export async function apiUpload<T>(path: string, file: UploadFile, token?: string | null): Promise<T> {
+export async function apiUpload<T>(
+  path: string,
+  file: UploadFile,
+  token?: string | null,
+  method: 'POST' | 'PUT' = 'POST',
+): Promise<T> {
   const form = new FormData();
   // O cast é necessário: o FormData do React Native aceita { uri, name, type }.
   form.append('file', file as unknown as Blob);
+  return apiMultipart<T>(path, form, token, method);
+}
 
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  // Não definir Content-Type: o fetch adiciona o boundary do multipart sozinho.
-
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, { method: 'POST', headers, body: form });
-  } catch {
+/**
+ * Envia um formulário multipart já montado (vários arquivos e/ou campos) e devolve o
+ * JSON tipado. Mesmo tratamento de erro/sessão do {@link apiFetch}.
+ */
+export async function apiMultipart<T>(
+  path: string,
+  form: FormData,
+  token?: string | null,
+  method: 'POST' | 'PUT' = 'POST',
+): Promise<T> {
+  if (DEMO) return demoCall<T>(path, method);
+  // Multipart vai por XMLHttpRequest, não por fetch: no Expo 57 o fetch global é o
+  // `expo/fetch`, que NÃO aceita arquivos no formato do React Native ({ uri, name, type })
+  // e falha antes de enviar ("Unsupported FormDataPart implementation"). O XHR do React
+  // Native lê o arquivo pelo `uri` nativamente. Não definir Content-Type: o boundary do
+  // multipart é gerado sozinho.
+  const { status, text } = await new Promise<{ status: number; text: string }>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, `${API_BASE_URL}${path}`);
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.timeout = 120000;
+    xhr.onload = () => resolve({ status: xhr.status, text: xhr.responseText ?? '' });
+    xhr.onerror = () => reject(new Error('network'));
+    xhr.ontimeout = () => reject(new Error('timeout'));
+    xhr.send(form);
+  }).catch(() => {
     throw new ApiError(0, 'Não foi possível enviar a imagem. Verifique a conexão com a API.');
-  }
+  });
 
-  if (!response.ok) {
-    throw new ApiError(response.status, await extractError(response));
+  if (status < 200 || status >= 300) {
+    if (status === 401 && token) {
+      notifySessionExpired();
+    }
+    throw new ApiError(status, errorMessageFrom(text, status));
   }
-  const text = await response.text();
   return (text ? JSON.parse(text) : undefined) as T;
+}
+
+/** Mesma extração de mensagem do {@link extractError}, a partir do corpo em texto. */
+function errorMessageFrom(text: string, status: number): string {
+  try {
+    const data = JSON.parse(text);
+    return data?.message ?? data?.error ?? `Erro ${status}`;
+  } catch {
+    return `Erro ${status}`;
+  }
 }
 
 /** Converte um caminho de mídia do backend (ex.: "/uploads/..") em URL absoluta. */

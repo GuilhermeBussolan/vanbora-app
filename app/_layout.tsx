@@ -1,16 +1,54 @@
 import '@/lib/polyfills';
 import React, { useEffect } from 'react';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useSegments } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AppStateProvider } from '@/context/AppState';
+import { AppStateProvider, useAppState } from '@/context/AppState';
+import { homeRouteFor } from '@/lib/roleHome';
+import { UserRole } from '@/types';
 import { ThemeProvider, useTheme } from '@/theme';
+
+/**
+ * Guard central de rota: cada perfil só navega (nem por deep link) na própria área —
+ * `(guardian)`, `(transporter)` ou `(monitor)` — e ninguém sem sessão acessa
+ * qualquer uma delas — sem depender apenas da UI
+ * não linkar para lá. A checagem real de permissão continua no backend; isto é
+ * só a camada de defesa em profundidade no cliente.
+ */
+function useRouteGuard() {
+  const segments = useSegments();
+  const { token, role, sessionRestored } = useAppState();
+
+  useEffect(() => {
+    // Evita redirecionar durante a restauração da sessão salva (evita flicker/falso-negativo).
+    if (!sessionRestored) return;
+
+    const group = segments[0];
+    const areaRole: Record<string, UserRole> = {
+      '(guardian)': 'guardian',
+      '(transporter)': 'transporter',
+      '(monitor)': 'monitor',
+    };
+    const area = group ? areaRole[group] : undefined;
+    if (!area) return;
+
+    if (!token) {
+      router.replace('/(auth)/welcome');
+      return;
+    }
+    // Cada perfil só navega na própria área (o monitor não entra em telas do transportador).
+    if (role && role !== area) {
+      router.replace(homeRouteFor(role));
+    }
+  }, [segments, token, role, sessionRestored]);
+}
 
 /** Stack de navegação com cores/barra de status reativas ao tema ativo. */
 function ThemedStack() {
   const { colors, isDark } = useTheme();
+  useRouteGuard();
 
   // Ao tocar numa notificação push, abre a tela relacionada ao evento.
   useEffect(() => {
@@ -18,8 +56,13 @@ function ThemedStack() {
       const data = response.notification.request.content.data as {
         type?: string;
         contractId?: number | string;
+        checklistId?: number | string;
       };
-      if (data?.type === 'CONTRACT_RELEASED' && data.contractId != null) {
+      if (data?.type === 'SAFETY_CHECK_PENDING' && data.checklistId != null) {
+        router.push(`/safety-checklist/${data.checklistId}`);
+      } else if (data?.type === 'SAFETY_CHECK_COMPLETED') {
+        router.push('/(guardian)/home');
+      } else if (data?.type === 'CONTRACT_RELEASED' && data.contractId != null) {
         router.push(`/contract/${data.contractId}`);
       } else if (
         data?.type === 'HIRE_REQUEST' ||
@@ -49,6 +92,11 @@ function ThemedStack() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(guardian)" />
         <Stack.Screen name="(transporter)" />
+        <Stack.Screen name="(monitor)" />
+        <Stack.Screen name="safety-checklist/[id]" />
+        <Stack.Screen name="safety-checklists" />
+        <Stack.Screen name="trips" />
+        <Stack.Screen name="edit-trip" />
         <Stack.Screen name="chat/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="transporter/[id]" />
         <Stack.Screen name="contract/[id]" />
@@ -64,9 +112,9 @@ function ThemedStack() {
         <Stack.Screen name="edit-bio" />
         <Stack.Screen name="guardian-profile/[id]" />
         <Stack.Screen name="cancelled-contracts" />
-        <Stack.Screen name="finance-detail" />
         <Stack.Screen name="add-revenue" />
         <Stack.Screen name="hire/[id]" />
+        <Stack.Screen name="counter-proposal/[id]" />
         <Stack.Screen name="add-expense" />
         <Stack.Screen name="add-fuel" />
         <Stack.Screen name="finance-settings" />
@@ -86,6 +134,7 @@ function ThemedStack() {
         <Stack.Screen name="notice/[id]" />
         <Stack.Screen name="transporter-notice/[id]" />
         <Stack.Screen name="guardian-notices" />
+        <Stack.Screen name="onboarding" />
       </Stack>
     </>
   );

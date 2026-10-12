@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppHeader, Button, Input, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { addExpense } from '@/api/finance';
+import { loadCustomCategories, rememberCategory } from '@/lib/expenseCategories';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
 
@@ -19,10 +20,24 @@ export default function AddExpenseScreen() {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    loadCustomCategories().then(setCustomCategories);
+  }, []);
+
+  // Atalhos padrão + categorias que o transportador já digitou antes (sem repetir as padrão).
+  const chipCategories = [
+    ...QUICK_CATEGORIES,
+    ...customCategories.filter(
+      (c) => !QUICK_CATEGORIES.some((q) => q.toLowerCase() === c.toLowerCase()),
+    ),
+  ];
 
   async function handleSave() {
     const value = parseAmount(amount);
-    if (!category.trim()) {
+    const trimmedCategory = category.trim();
+    if (!trimmedCategory) {
       setError('Informe a categoria do gasto.');
       return;
     }
@@ -36,10 +51,13 @@ export default function AddExpenseScreen() {
     try {
       await addExpense(token, {
         date: null,
-        category: category.trim(),
+        category: trimmedCategory,
         description: description.trim() || null,
         amount: value,
       });
+      if (!QUICK_CATEGORIES.some((q) => q.toLowerCase() === trimmedCategory.toLowerCase())) {
+        await rememberCategory(trimmedCategory);
+      }
       router.back();
     } catch (err: any) {
       setError(err?.message ?? 'Falha ao salvar o gasto.');
@@ -56,7 +74,7 @@ export default function AddExpenseScreen() {
 
       <Text style={styles.fieldLabel}>Categoria</Text>
       <View style={styles.chips}>
-        {QUICK_CATEGORIES.map((c) => {
+        {chipCategories.map((c) => {
           const active = c === category;
           return (
             <Pressable

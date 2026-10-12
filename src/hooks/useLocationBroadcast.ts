@@ -8,7 +8,8 @@ export type LocationPermission = 'undetermined' | 'granted' | 'denied';
 
 export interface LocationBroadcastState {
   permission: LocationPermission;
-  current: { latitude: number; longitude: number } | null;
+  /** Direção do deslocamento (graus, 0-360) incluída quando o GPS fornece. */
+  current: { latitude: number; longitude: number; heading: number | null } | null;
   error: string | null;
   /** true enquanto está de fato compartilhando (interruptor ligado + dentro da janela). */
   active: boolean;
@@ -24,7 +25,9 @@ export function useLocationBroadcast(
   sharing: LocationSharingDto | null,
 ): LocationBroadcastState {
   const [permission, setPermission] = useState<LocationPermission>('undetermined');
-  const [current, setCurrent] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [current, setCurrent] = useState<
+    { latitude: number; longitude: number; heading: number | null } | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState(false);
   const lastSentAt = useRef(0);
@@ -58,14 +61,17 @@ export function useLocationBroadcast(
       subscription = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
         (position) => {
-          const { latitude, longitude } = position.coords;
-          setCurrent({ latitude, longitude });
+          const { latitude, longitude, heading } = position.coords;
+          // iOS reporta -1 quando a direção não é confiável (parado/sem bússola); trata
+          // como ausente em vez de girar o marcador com um valor inválido.
+          const validHeading = heading != null && heading >= 0 ? heading : null;
+          setCurrent({ latitude, longitude, heading: validHeading });
 
           // Limita o envio à API a no máximo 1x a cada 4s.
           const now = Date.now();
           if (now - lastSentAt.current < 4000) return;
           lastSentAt.current = now;
-          postMyLocation(token, latitude, longitude).catch((err) => {
+          postMyLocation(token, latitude, longitude, validHeading).catch((err) => {
             setError(err?.message ?? 'Falha ao enviar localização.');
           });
         },

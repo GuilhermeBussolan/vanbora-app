@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { AppHeader, Button, Input, Screen } from '@/components';
+import { AppHeader, Button, Card, Input, Screen } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { getFinanceSummary, updateFinanceSettings } from '@/api/finance';
+import { defaultFinancePrefs, FinancePrefs, loadFinancePrefs, saveFinancePrefs } from '@/lib/financePrefs';
 import { parseAmount } from './add-expense';
 import { spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
@@ -17,6 +18,7 @@ export default function FinanceSettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [financePrefs, setFinancePrefs] = useState<FinancePrefs>(defaultFinancePrefs);
 
   useEffect(() => {
     if (!token) return;
@@ -27,7 +29,14 @@ export default function FinanceSettingsScreen() {
       })
       .catch((err) => setError(err?.message ?? 'Falha ao carregar os ajustes.'))
       .finally(() => setLoading(false));
+    loadFinancePrefs().then(setFinancePrefs);
   }, [token]);
+
+  function toggleSuggestions(value: boolean) {
+    const next = { ...financePrefs, showSuggestions: value };
+    setFinancePrefs(next);
+    saveFinancePrefs(next);
+  }
 
   async function handleSave() {
     const goalValue = goal.trim() ? parseAmount(goal) : null;
@@ -97,6 +106,24 @@ export default function FinanceSettingsScreen() {
         Avisaremos quando você se aproximar do intervalo. Use "Revisão feita" no painel ao concluir.
       </Text>
 
+      <Text style={[styles.fieldLabel, styles.switchSectionLabel]}>Sugestões</Text>
+      <Card padded={false}>
+        <View style={styles.switchRow}>
+          <View style={styles.switchInfo}>
+            <Text style={styles.switchLabel}>Mostrar sugestões no painel</Text>
+            <Text style={styles.switchDescription}>
+              Dicas automáticas de combustível, manutenção e meta de receita.
+            </Text>
+          </View>
+          <Switch
+            value={financePrefs.showSuggestions}
+            onValueChange={toggleSuggestions}
+            trackColor={{ true: colors.brand, false: colors.border }}
+            thumbColor={colors.white}
+          />
+        </View>
+      </Card>
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </Screen>
   );
@@ -110,5 +137,15 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
   field: { marginBottom: spacing.xs },
   hint: { fontSize: 12, color: colors.textMuted, marginTop: spacing.xs },
+  switchSectionLabel: { marginTop: spacing.lg },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  switchInfo: { flex: 1 },
+  switchLabel: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  switchDescription: { fontSize: 12, color: colors.textSecondary, marginTop: 2, lineHeight: 16 },
   error: { fontSize: 13, color: colors.danger, marginTop: spacing.sm },
 });

@@ -5,11 +5,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppHeader, Button, ConsentCheckbox, Input, Screen, StepProgress } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { registerTransporter } from '@/api/auth';
+import { clearSignupDraft, getSignupDraft } from '@/state/signupDraft';
+import { addVehiclePhoto } from '@/api/transporter';
+import { UploadFile } from '@/api/client';
 import { parseAmount } from '../add-expense';
+import { foldForCompare, titleCase } from '@/lib/textNormalize';
+import { VehicleAccessibilityFeature, VehicleCharacteristic } from '@/types';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
 
-/** Cadastro do transportador — Etapa 2: área de atendimento e valor de tabela. */
+/** Cadastro do transportador — Etapa 3: área de atendimento e valor de tabela. */
 export default function RegisterTransporterZonesScreen() {
   const { colors, typography, styles } = useThemedScreen(createStyles);
   const { applySession } = useAppState();
@@ -20,8 +25,21 @@ export default function RegisterTransporterZonesScreen() {
     document?: string;
     cnh?: string;
     plate?: string;
-    password: string;
+    vehicleCharacteristics?: string;
+    vehicleAccessibilityFeatures?: string;
+    vehiclePhotos?: string;
   }>();
+  // Credencial do cadastro (senha digitada na etapa 1 ou ticket do login social):
+  // fica fora dos parâmetros de rota. Ver `@/state/signupDraft`.
+  const draft = getSignupDraft();
+
+  const vehicleCharacteristics: VehicleCharacteristic[] = step1.vehicleCharacteristics
+    ? JSON.parse(step1.vehicleCharacteristics)
+    : [];
+  const vehicleAccessibilityFeatures: VehicleAccessibilityFeature[] = step1.vehicleAccessibilityFeatures
+    ? JSON.parse(step1.vehicleAccessibilityFeatures)
+    : [];
+  const vehiclePhotos: UploadFile[] = step1.vehiclePhotos ? JSON.parse(step1.vehiclePhotos) : [];
 
   const [schools, setSchools] = useState<string[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
@@ -50,7 +68,8 @@ export default function RegisterTransporterZonesScreen() {
       const session = await registerTransporter({
         name: step1.name,
         email: step1.email,
-        password: step1.password,
+        password: draft.password,
+        socialTicket: draft.socialTicket,
         phone: step1.phone,
         document: step1.document || undefined,
         cnh: step1.cnh || undefined,
@@ -58,9 +77,17 @@ export default function RegisterTransporterZonesScreen() {
         schools,
         neighborhoods,
         baseMonthlyFee: feeValue,
+        vehicleCharacteristics,
+        vehicleAccessibilityFeatures,
         acceptedTerms: accepted,
       });
+      clearSignupDraft();
       await applySession(session);
+      // Fotos são enviadas só agora (precisam de um token, que só existe após o cadastro).
+      // Melhor esforço: uma falha de upload não deve impedir a conclusão do cadastro.
+      for (const photo of vehiclePhotos) {
+        await addVehiclePhoto(session.token, photo).catch(() => undefined);
+      }
       router.replace('/(transporter)/home');
     } catch (err: any) {
       setError(err?.message ?? 'Falha ao concluir o cadastro.');
@@ -72,7 +99,7 @@ export default function RegisterTransporterZonesScreen() {
   return (
     <Screen footer={<Button label="Concluir Cadastro" onPress={handleFinish} loading={loading} />}>
       <AppHeader title="Criar Conta" showBack />
-      <StepProgress steps={2} current={2} />
+      <StepProgress steps={3} current={3} />
 
       <Text style={[typography.sectionTitle, styles.section]}>Área de Atendimento e Preço</Text>
       <Text style={styles.subtitle}>
@@ -127,9 +154,9 @@ function EditableList({
   const [draft, setDraft] = useState('');
 
   function add() {
-    const value = draft.trim();
+    const value = titleCase(draft);
     if (!value) return;
-    if (!items.some((i) => i.toLowerCase() === value.toLowerCase())) {
+    if (!items.some((i) => foldForCompare(i) === foldForCompare(value))) {
       onChange([...items, value]);
     }
     setDraft('');

@@ -7,6 +7,12 @@ export function listContracts(token: string, status?: ContractStatus): Promise<C
   return apiFetch<ContractDto[]>(`/api/guardians/me/contracts${query}`, { token });
 }
 
+/** [Transportador] Lista seus contratos, opcionalmente filtrando por status (ex.: cancelados). */
+export function listTransporterContracts(token: string, status?: ContractStatus): Promise<ContractDto[]> {
+  const query = status ? `?status=${status}` : '';
+  return apiFetch<ContractDto[]>(`/api/transporters/me/contracts${query}`, { token });
+}
+
 /** [Responsável] Detalhe de um contrato. */
 export function getContract(token: string, id: number): Promise<ContractDto> {
   return apiFetch<ContractDto>(`/api/guardians/me/contracts/${id}`, { token });

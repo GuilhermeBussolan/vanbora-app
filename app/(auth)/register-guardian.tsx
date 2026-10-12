@@ -5,6 +5,7 @@ import { AppHeader, Button, ConsentCheckbox, Input, Screen } from '@/components'
 import { AddressFields, AddressValue, EMPTY_ADDRESS } from '@/components/feature/AddressFields';
 import { useAppState } from '@/context/AppState';
 import { registerGuardian } from '@/api/auth';
+import { clearSignupDraft, getSignupDraft } from '@/state/signupDraft';
 import { formatCpf, formatPhone, isValidCpf, isValidEmail, isValidPhone } from '@/lib/validation';
 import { spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
@@ -13,11 +14,16 @@ import type { ThemeColors, Typography } from '@/theme';
 export default function RegisterGuardianScreen() {
   const { colors, typography, styles } = useThemedScreen(createStyles);
   const { applySession } = useAppState();
+  // Cadastro vindo do Google/Facebook: nome e e-mail já vêm do provedor e não há
+  // senha a criar — o ticket comprova o login social. Lido uma única vez, no
+  // primeiro render, para não sobrescrever o que o usuário editar depois.
+  const [social] = useState(() => getSignupDraft());
+  const isSocial = Boolean(social.socialTicket);
   const [form, setForm] = useState({
-    name: '',
+    name: social.name ?? '',
     phone: '',
     cpf: '',
-    email: '',
+    email: social.email ?? '',
     password: '',
     confirmPassword: '',
   });
@@ -56,13 +62,15 @@ export default function RegisterGuardianScreen() {
       setError('Informe o endereço de entrega ou marque "mesmo endereço".');
       return;
     }
-    if (form.password.length < 6) {
-      setError('A senha deve ter ao menos 6 caracteres.');
-      return;
-    }
-    if (form.password !== form.confirmPassword) {
-      setError('As senhas não conferem.');
-      return;
+    if (!isSocial) {
+      if (form.password.length < 6) {
+        setError('A senha deve ter ao menos 6 caracteres.');
+        return;
+      }
+      if (form.password !== form.confirmPassword) {
+        setError('As senhas não conferem.');
+        return;
+      }
     }
     if (!accepted) {
       setError('É necessário ler e aceitar a Política de Privacidade e os Termos de Uso.');
@@ -74,7 +82,8 @@ export default function RegisterGuardianScreen() {
       const session = await registerGuardian({
         name: form.name.trim(),
         email: form.email.trim(),
-        password: form.password,
+        password: isSocial ? undefined : form.password,
+        socialTicket: social.socialTicket,
         phone: form.phone.trim(),
         cpf: form.cpf.trim(),
         pickup,
@@ -82,6 +91,7 @@ export default function RegisterGuardianScreen() {
         delivery: deliverySame ? null : delivery,
         acceptedTerms: accepted,
       });
+      clearSignupDraft();
       await applySession(session);
       router.replace('/(guardian)/home');
     } catch (err: any) {
@@ -118,8 +128,16 @@ export default function RegisterGuardianScreen() {
           keyboardType="email-address"
           value={form.email}
           onChangeText={update('email')}
+          editable={!isSocial}
         />
       </View>
+
+      {isSocial ? (
+        <Text style={styles.socialHint}>
+          Conta conectada com {social.provider === 'facebook' ? 'Facebook' : 'Google'}. Você entra
+          por lá — não precisa criar senha.
+        </Text>
+      ) : null}
 
       <Text style={[typography.sectionTitle, styles.section]}>Endereço de Embarque</Text>
       <Text style={styles.sectionHint}>Onde a criança será buscada.</Text>
@@ -143,16 +161,25 @@ export default function RegisterGuardianScreen() {
         </>
       ) : null}
 
-      <Text style={[typography.sectionTitle, styles.section]}>Senha</Text>
-      <View style={styles.form}>
-        <Input placeholder="Senha" password value={form.password} onChangeText={update('password')} />
-        <Input
-          placeholder="Confirmar Senha"
-          password
-          value={form.confirmPassword}
-          onChangeText={update('confirmPassword')}
-        />
-      </View>
+      {!isSocial ? (
+        <>
+          <Text style={[typography.sectionTitle, styles.section]}>Senha</Text>
+          <View style={styles.form}>
+            <Input
+              placeholder="Senha"
+              password
+              value={form.password}
+              onChangeText={update('password')}
+            />
+            <Input
+              placeholder="Confirmar Senha"
+              password
+              value={form.confirmPassword}
+              onChangeText={update('confirmPassword')}
+            />
+          </View>
+        </>
+      ) : null}
 
       <ConsentCheckbox checked={accepted} onToggle={() => setAccepted((v) => !v)} />
 
@@ -173,5 +200,11 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
     marginTop: spacing.lg,
   },
   toggleText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  socialHint: {
+    marginTop: spacing.md,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textSecondary,
+  },
   error: { fontSize: 13, color: colors.danger, marginTop: spacing.lg },
 });

@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { AppHeader, Button, Input, Logo, Screen } from '@/components';
+import { AppHeader, Button, Input, Logo, Screen, SocialAuthButtons } from '@/components';
 import { useAppState } from '@/context/AppState';
 import { ApiError } from '@/api/client';
+import { clearSignupDraft } from '@/state/signupDraft';
+import { homeRouteFor } from '@/lib/roleHome';
 import { spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
 
-/** Login real contra a API: roteia para Responsável ou Transportador conforme o papel. */
+/** Login real contra a API: roteia para Responsável, Transportador ou Monitor conforme o papel. */
 export default function LoginScreen() {
   const { colors, typography, styles } = useThemedScreen(createStyles);
   const { login, setHasTransporter } = useAppState();
@@ -24,19 +26,17 @@ export default function LoginScreen() {
     setLoading(true);
     setError(null);
     try {
+      // Um cadastro social abandonado não deve influenciar o login por senha.
+      clearSignupDraft();
       const role = await login(email.trim(), password);
-      if (role === 'transporter') {
-        router.replace('/(transporter)/home');
-      } else {
-        setHasTransporter(true);
-        router.replace('/(guardian)/home');
-      }
+      if (role === 'guardian') setHasTransporter(true);
+      router.replace(homeRouteFor(role));
     } catch (err) {
       const message =
         err instanceof ApiError
-          ? err.status === 401 || err.status === 403
+          ? err.status === 401
             ? 'E-mail ou senha inválidos.'
-            : err.message
+            : err.message // 403 = acesso desativado (ex.: monitor removido pelo transportador)
           : 'Falha ao entrar. Tente novamente.';
       setError(message);
     } finally {
@@ -81,8 +81,11 @@ export default function LoginScreen() {
 
       <Button label="Entrar" onPress={handleLogin} loading={loading} style={styles.submit} />
 
+      <SocialAuthButtons onError={(message) => setError(message || null)} />
+
       <Text style={styles.demoHint}>
-        Demo · responsável: mariana@vanbora.com · transportador: roberto@vanbora.com · senha: 123456
+        Demo · responsável: mariana@vanbora.com · transportador: roberto@vanbora.com · monitor:
+        monitor.carlos@vanbora.com · senha: 123456
       </Text>
     </Screen>
   );

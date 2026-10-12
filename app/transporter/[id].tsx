@@ -1,5 +1,16 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -7,6 +18,7 @@ import {
   Avatar,
   Button,
   Card,
+  Chip,
   Screen,
   SectionTitle,
   StarRating,
@@ -15,6 +27,7 @@ import { useAppState } from '@/context/AppState';
 import { getPublicProfile } from '@/api/transporter';
 import { startConversation } from '@/api/chat';
 import { mediaUrl } from '@/api/client';
+import { accessibilityOption, groupCharacteristics } from '@/lib/vehicleFeatures';
 import { TransporterDetailDto } from '@/types';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
@@ -24,10 +37,15 @@ export default function PublicTransporterProfile() {
   const { colors, typography, styles } = useThemedScreen(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAppState();
+  const { width } = useWindowDimensions();
   const [transporter, setTransporter] = useState<TransporterDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [messaging, setMessaging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const galleryWidth = width - spacing.lg * 2;
+  const isWide = width >= 600;
 
   const load = useCallback(() => {
     let active = true;
@@ -140,6 +158,70 @@ export default function PublicTransporterProfile() {
         </>
       ) : null}
 
+      <SectionTitle title="Sobre o veículo" style={styles.section} />
+      {transporter.vehiclePhotoUrls.length === 0 ? (
+        <View style={styles.galleryPlaceholder}>
+          <Ionicons name="car-outline" size={28} color={colors.textMuted} />
+          <Text style={styles.galleryPlaceholderText}>Nenhuma foto do veículo disponível.</Text>
+        </View>
+      ) : (
+        <>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) =>
+              setGalleryIndex(Math.round(e.nativeEvent.contentOffset.x / galleryWidth))
+            }
+            style={{ width: galleryWidth }}
+          >
+            {transporter.vehiclePhotoUrls.map((url, i) => (
+              <Pressable key={i} onPress={() => setPreviewOpen(true)} style={{ width: galleryWidth }}>
+                <Image source={{ uri: mediaUrl(url) }} style={styles.galleryImage} />
+              </Pressable>
+            ))}
+          </ScrollView>
+          {transporter.vehiclePhotoUrls.length > 1 ? (
+            <View style={styles.dots}>
+              {transporter.vehiclePhotoUrls.map((_, i) => (
+                <View key={i} style={[styles.dot, i === galleryIndex && styles.dotActive]} />
+              ))}
+            </View>
+          ) : null}
+        </>
+      )}
+
+      {(() => {
+        const groups = groupCharacteristics(transporter.vehicleCharacteristics);
+        const safety = groups.find((g) => g.category === 'safety');
+        const comfort = groups.find((g) => g.category === 'comfort');
+        const accessibility = transporter.vehicleAccessibilityFeatures
+          .map(accessibilityOption)
+          .filter((o): o is NonNullable<typeof o> => !!o);
+        return (
+          <>
+            {safety ? <FeatureGroup label="Segurança" options={safety.options} /> : null}
+            {accessibility.length > 0 ? <FeatureGroup label="Acessibilidade" options={accessibility} /> : null}
+            {comfort ? <FeatureGroup label="Conforto" options={comfort.options} /> : null}
+          </>
+        );
+      })()}
+
+      <Modal visible={previewOpen} transparent animationType="fade" onRequestClose={() => setPreviewOpen(false)}>
+        <View style={styles.previewBackdrop}>
+          <Pressable style={styles.previewClose} onPress={() => setPreviewOpen(false)} hitSlop={10}>
+            <Ionicons name="close" size={28} color="#FFFFFF" />
+          </Pressable>
+          {transporter.vehiclePhotoUrls[galleryIndex] ? (
+            <Image
+              source={{ uri: mediaUrl(transporter.vehiclePhotoUrls[galleryIndex]) }}
+              style={styles.previewImage}
+              resizeMode="contain"
+            />
+          ) : null}
+        </View>
+      </Modal>
+
       <SectionTitle title="Equipe (Ajudantes)" style={styles.section} />
       {transporter.helpers.length === 0 ? (
         <Text style={styles.empty}>Este transportador trabalha sem ajudantes cadastrados.</Text>
@@ -157,37 +239,39 @@ export default function PublicTransporterProfile() {
         </View>
       )}
 
-      <SectionTitle title="Escolas Atendidas" style={styles.section} />
-      {transporter.schools.length === 0 ? (
-        <Text style={styles.empty}>Nenhuma escola informada.</Text>
-      ) : (
-        <View style={styles.facList}>
-          {transporter.schools.map((s) => (
-            <View key={s} style={styles.facItem}>
-              <View style={styles.facCircle}>
-                <Ionicons name="school" size={15} color={colors.textOnBrand} />
-              </View>
-              <Text style={styles.facLabel}>{s}</Text>
+      <SectionTitle title="Atendimento" style={styles.section} />
+      <View style={[styles.attendanceRow, isWide && styles.attendanceRowWide]}>
+        <View style={styles.attendanceCol}>
+          <View style={styles.attendanceHeader}>
+            <Ionicons name="location" size={15} color={colors.brandDark} />
+            <Text style={styles.attendanceHeaderText}>Bairros atendidos</Text>
+          </View>
+          {transporter.neighborhoods.length === 0 ? (
+            <Text style={styles.empty}>Nenhum bairro informado.</Text>
+          ) : (
+            <View style={styles.chipsRow}>
+              {transporter.neighborhoods.map((n) => (
+                <Chip key={n} label={n} selected />
+              ))}
             </View>
-          ))}
+          )}
         </View>
-      )}
-
-      <SectionTitle title="Bairros Atendidos" style={styles.section} />
-      {transporter.neighborhoods.length === 0 ? (
-        <Text style={styles.empty}>Nenhum bairro informado.</Text>
-      ) : (
-        <View style={styles.facList}>
-          {transporter.neighborhoods.map((n) => (
-            <View key={n} style={styles.facItem}>
-              <View style={styles.facCircle}>
-                <Ionicons name="location" size={15} color={colors.textOnBrand} />
-              </View>
-              <Text style={styles.facLabel}>{n}</Text>
+        <View style={styles.attendanceCol}>
+          <View style={styles.attendanceHeader}>
+            <Ionicons name="school" size={15} color={colors.brandDark} />
+            <Text style={styles.attendanceHeaderText}>Escolas atendidas</Text>
+          </View>
+          {transporter.schools.length === 0 ? (
+            <Text style={styles.empty}>Nenhuma escola informada.</Text>
+          ) : (
+            <View style={styles.chipsRow}>
+              {transporter.schools.map((s) => (
+                <Chip key={s} label={s} selected />
+              ))}
             </View>
-          ))}
+          )}
         </View>
-      )}
+      </View>
 
       <SectionTitle title="Avaliações de outros responsáveis" style={styles.section} />
       {transporter.reviews.length === 0 ? (
@@ -209,6 +293,27 @@ export default function PublicTransporterProfile() {
   );
 }
 
+/** Grupo de recursos do veículo (rótulo pequeno + chips), usado para Segurança/Acessibilidade/Conforto. */
+function FeatureGroup({
+  label,
+  options,
+}: {
+  label: string;
+  options: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap }[];
+}) {
+  const { styles } = useThemedScreen(createStyles);
+  return (
+    <View style={styles.featureGroup}>
+      <Text style={styles.featureGroupLabel}>{label}</Text>
+      <View style={styles.chipsRow}>
+        {options.map((o) => (
+          <Chip key={o.key} label={o.label} icon={o.icon} selected />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 const createStyles = (colors: ThemeColors, typography: Typography) =>
   StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.xxxl },
@@ -225,28 +330,55 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   helperInfo: { flex: 1, gap: 2 },
   helperName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   helperRole: { fontSize: 12, color: colors.textSecondary },
-  facList: { gap: spacing.sm },
-  facItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+  bioText: { fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
+  featureGroup: { marginTop: spacing.md },
+  featureGroupLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  attendanceRow: { gap: spacing.lg },
+  attendanceRowWide: { flexDirection: 'row' },
+  attendanceCol: { flex: 1 },
+  attendanceHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm },
+  attendanceHeaderText: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
+  galleryPlaceholder: {
+    height: 120,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
   },
-  facCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.pill,
-    backgroundColor: colors.brand,
+  galleryPlaceholderText: { fontSize: 12, color: colors.textSecondary },
+  galleryImage: {
+    width: '100%',
+    height: 190,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: spacing.sm },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border },
+  dotActive: { backgroundColor: colors.brand, width: 16 },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  previewBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  facLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  bioText: { fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
+  previewClose: {
+    position: 'absolute',
+    top: 56,
+    right: spacing.lg,
+    zIndex: 1,
+  },
+  previewImage: { width: '100%', height: '80%' },
   reviews: { gap: spacing.md },
   reviewHead: {
     flexDirection: 'row',

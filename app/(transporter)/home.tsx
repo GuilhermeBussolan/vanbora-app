@@ -7,7 +7,10 @@ import { useAppState } from '@/context/AppState';
 import { listHireRequests, releaseContract, rejectHireRequest } from '@/api/hire';
 import { listMyNotices } from '@/api/notices';
 import { getDashboard, DashboardMetrics } from '@/api/dashboard';
-import { HireRequestDto, TransporterNoticeDto } from '@/types';
+import { listChecklists } from '@/api/checklists';
+import { HireRequestDto, SafetyChecklistDto, TransporterNoticeDto } from '@/types';
+import { useOnboardingGate } from '@/onboarding/useOnboardingGate';
+import { WhatsNewBanner } from '@/onboarding/WhatsNewBanner';
 import { currentTransporterName, formatCurrency } from '@/data/mockData';
 import { radius, spacing, useThemedScreen } from '@/theme';
 import type { ThemeColors, Typography } from '@/theme';
@@ -16,8 +19,10 @@ import type { ThemeColors, Typography } from '@/theme';
 export default function TransporterHomeScreen() {
   const { colors, typography, styles } = useThemedScreen(createStyles);
   const { token, user } = useAppState();
+  const onboarding = useOnboardingGate('transporter');
   const [requests, setRequests] = useState<HireRequestDto[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [pendingChecks, setPendingChecks] = useState<SafetyChecklistDto[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +32,7 @@ export default function TransporterHomeScreen() {
       .then(setRequests)
       .catch((err) => setError(err?.message ?? 'Falha ao carregar solicitações.'));
     getDashboard(token).then(setMetrics).catch(() => undefined);
+    listChecklists(token, 'PENDING').then(setPendingChecks).catch(() => setPendingChecks([]));
   }, [token]);
 
   useFocusEffect(loadData);
@@ -71,6 +77,27 @@ export default function TransporterHomeScreen() {
         Olá, {user?.name ?? currentTransporterName}
       </Text>
 
+      {onboarding.mode === 'whats-new' ? (
+        <WhatsNewBanner
+          count={onboarding.newStepsCount}
+          onView={onboarding.viewGuide}
+          onDismiss={onboarding.dismissNew}
+        />
+      ) : null}
+
+      {pendingChecks.map((c) => (
+        <Pressable key={c.id} onPress={() => router.push(`/safety-checklist/${c.id}`)}>
+          <Card style={styles.safetyCard}>
+            <Ionicons name="warning-outline" size={20} color={colors.warning} />
+            <View style={styles.safetyInfo}>
+              <Text style={styles.safetyTitle}>⚠️ Verificação de segurança pendente</Text>
+              <Text style={styles.safetyText}>{c.tripName} — confira a van e registre a foto.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Card>
+        </Pressable>
+      ))}
+
       <View style={styles.metrics}>
         {metricCards.map((m) => (
           <Pressable
@@ -90,11 +117,14 @@ export default function TransporterHomeScreen() {
         ))}
       </View>
 
-      <Card style={styles.churnCard}>
-        <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
-        <Text style={styles.churnLabel}>Contratos cancelados</Text>
-        <Text style={styles.churnValue}>{metrics?.cancelledContracts ?? 0}</Text>
-      </Card>
+      <Pressable onPress={() => router.push('/transporter-cancelled-contracts')}>
+        <Card style={styles.churnCard}>
+          <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
+          <Text style={styles.churnLabel}>Contratos cancelados</Text>
+          <Text style={styles.churnValue}>{metrics?.cancelledContracts ?? 0}</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        </Card>
+      </Pressable>
 
       <SectionTitle title="Solicitações de Contratação" style={styles.section} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -164,6 +194,27 @@ export default function TransporterHomeScreen() {
                   style={styles.rejectBtn}
                 />
               </View>
+              {req.proposedFee != null ? (
+                <Button
+                  label="Contrapropor"
+                  variant="outline"
+                  icon="swap-horizontal-outline"
+                  onPress={() =>
+                    router.push({
+                      pathname: '/counter-proposal/[id]',
+                      params: {
+                        id: String(req.id),
+                        name: req.guardianName,
+                        studentName: req.studentName,
+                        baseFee: String(req.baseFee),
+                        proposedFee: String(req.proposedFee),
+                      },
+                    })
+                  }
+                  disabled={busyId === req.id}
+                  style={styles.counterBtn}
+                />
+              ) : null}
             </Card>
           ))
         )}
@@ -245,6 +296,17 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   greeting: {
     marginBottom: spacing.xl,
   },
+  safetyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderColor: colors.warning,
+    backgroundColor: colors.warningBg,
+    marginBottom: spacing.md,
+  },
+  safetyInfo: { flex: 1 },
+  safetyTitle: { fontSize: 14, fontWeight: '800', color: colors.textPrimary },
+  safetyText: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   metrics: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -375,6 +437,10 @@ const createStyles = (colors: ThemeColors, typography: Typography) =>
   },
   rejectBtn: {
     flex: 1,
+    height: 44,
+  },
+  counterBtn: {
+    marginTop: spacing.sm,
     height: 44,
   },
   noticeTop: {

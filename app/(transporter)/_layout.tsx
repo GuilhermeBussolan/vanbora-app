@@ -1,5 +1,6 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
+import { router, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
@@ -7,6 +8,7 @@ import { useTheme } from '@/theme';
 
 /** Navegação por abas do perfil Transportador. */
 export default function TransporterLayout() {
+  const isWeb = Platform.OS === 'web';
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const unread = useUnreadCount();
@@ -19,11 +21,12 @@ export default function TransporterLayout() {
         tabBarStyle: {
           backgroundColor: colors.white,
           borderTopColor: colors.border,
-          height: 64 + insets.bottom,
+          // Na web o ícone e o rótulo ocupam mais altura: sem os 10px extras o rótulo é cortado.
+          height: 64 + insets.bottom + (isWeb ? 10 : 0),
           paddingBottom: insets.bottom + 8,
           paddingTop: 8,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: isWeb ? 10 : 11, fontWeight: '600' },
       }}
     >
       <Tabs.Screen
@@ -42,6 +45,19 @@ export default function TransporterLayout() {
       />
       <Tabs.Screen
         name="finance"
+        listeners={({ navigation }) => ({
+          // O Financeiro agora tem uma Stack interna (Visão geral/Recebimentos/Despesas/...).
+          // Tocar de novo na aba já ativa dispara por padrão um POP_TO_TOP que essa Stack não
+          // aceita (troca de visão usa router.replace, sem histórico empilhado) — sem isto, o
+          // React Navigation loga "action not handled by any navigator". Em vez do padrão,
+          // volta explicitamente para a Visão geral.
+          tabPress: (e) => {
+            if (navigation.isFocused()) {
+              e.preventDefault();
+              router.replace('/(transporter)/finance');
+            }
+          },
+        })}
         options={{
           title: 'Financeiro',
           tabBarIcon: ({ color, size }) => <Ionicons name="cash-outline" size={size} color={color} />,

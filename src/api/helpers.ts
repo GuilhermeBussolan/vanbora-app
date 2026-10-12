@@ -6,10 +6,17 @@ export function listHelpers(token: string): Promise<HelperDto[]> {
   return apiFetch<HelperDto[]>('/api/transporters/me/helpers', { token });
 }
 
-/** [Transportador] Cadastra um ajudante/monitor. */
+/** Acesso ao app de um monitor (senha em branco na edição mantém a atual). */
+export interface MonitorAccessInput {
+  email: string;
+  phone: string;
+  password?: string;
+}
+
+/** [Transportador] Cadastra um ajudante/monitor (com acesso ao app, se informado). */
 export function addHelper(
   token: string,
-  body: { name: string; role: string },
+  body: { name: string; role: string; access?: MonitorAccessInput },
 ): Promise<HelperDto> {
   return apiFetch<HelperDto>('/api/transporters/me/helpers', {
     method: 'POST',
@@ -31,7 +38,17 @@ export function updateHelper(
   });
 }
 
-/** [Transportador] Exclui definitivamente um ajudante. */
+/** [Transportador] Cria/atualiza o acesso ao app do monitor. */
+export function setHelperAccess(token: string, id: number, body: MonitorAccessInput): Promise<HelperDto> {
+  return apiFetch<HelperDto>(`/api/transporters/me/helpers/${id}/access`, { method: 'PUT', body, token });
+}
+
+/** [Transportador] Retira o acesso ao app do monitor (efeito imediato). */
+export function revokeHelperAccess(token: string, id: number): Promise<HelperDto> {
+  return apiFetch<HelperDto>(`/api/transporters/me/helpers/${id}/access`, { method: 'DELETE', token });
+}
+
+/** [Transportador] Exclui o ajudante (monitor: conta desativada, histórico preservado). */
 export function deleteHelper(token: string, id: number): Promise<void> {
   return apiFetch<void>(`/api/transporters/me/helpers/${id}`, { method: 'DELETE', token });
 }

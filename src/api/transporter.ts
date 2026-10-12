@@ -4,6 +4,8 @@ import {
   TransporterDetailDto,
   TransporterProfileDto,
   TransporterSummaryDto,
+  VehicleAccessibilityFeature,
+  VehicleCharacteristic,
 } from '@/types';
 import { apiFetch, apiUpload, UploadFile } from './client';
 
@@ -106,6 +108,59 @@ export function updateTransporterBio(token: string, bio: string): Promise<Transp
   return apiFetch<TransporterProfileDto>('/api/transporters/me/bio', {
     method: 'PUT',
     body: { bio },
+    token,
+  });
+}
+
+// ----- Fotos e características do veículo -----
+
+/** Adiciona uma foto do veículo (máx. 3; a primeira é a principal). */
+export function addVehiclePhoto(token: string, file: UploadFile): Promise<TransporterProfileDto> {
+  return apiUpload<TransporterProfileDto>('/api/transporters/me/vehicle-photos', file, token);
+}
+
+/** Substitui a foto do veículo na posição informada (0 = principal), mantendo a ordem. */
+export function replaceVehiclePhoto(
+  token: string,
+  index: number,
+  file: UploadFile,
+): Promise<TransporterProfileDto> {
+  return apiUpload<TransporterProfileDto>(
+    `/api/transporters/me/vehicle-photos/${index}`,
+    file,
+    token,
+    'PUT',
+  );
+}
+
+/** Remove a foto do veículo na posição informada. */
+export function deleteVehiclePhoto(token: string, index: number): Promise<TransporterProfileDto> {
+  return apiFetch<TransporterProfileDto>(`/api/transporters/me/vehicle-photos/${index}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+/** Reordena as fotos do veículo: `order[k]` = índice atual da foto que vai para a posição k. */
+export function reorderVehiclePhotos(token: string, order: number[]): Promise<TransporterProfileDto> {
+  return apiFetch<TransporterProfileDto>('/api/transporters/me/vehicle-photos/order', {
+    method: 'PUT',
+    body: { order },
+    token,
+  });
+}
+
+/** Substitui por completo as características e a acessibilidade do veículo. */
+export function updateVehicleCharacteristics(
+  token: string,
+  body: {
+    characteristics: VehicleCharacteristic[];
+    accessibilityFeatures: VehicleAccessibilityFeature[];
+  },
+): Promise<TransporterProfileDto> {
+  return apiFetch<TransporterProfileDto>('/api/transporters/me/vehicle-characteristics', {
+    method: 'PUT',
+    body,
     token,
   });
 }

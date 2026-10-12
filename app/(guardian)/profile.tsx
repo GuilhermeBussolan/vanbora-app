@@ -19,6 +19,7 @@ const SETTINGS: SettingItem[] = [
   { icon: 'lock-closed-outline', label: 'Alterar Senha', route: '/change-password' },
   { icon: 'notifications-outline', label: 'Notificações', route: '/notifications-settings' },
   { icon: 'moon-outline', label: 'Aparência', route: '/appearance-settings' },
+  { icon: 'help-circle-outline', label: 'Conheça o Vanbora', route: '/onboarding?manual=1' },
   { icon: 'shield-checkmark-outline', label: 'Privacidade e Dados', route: '/privacy-data' },
   { icon: 'document-text-outline', label: 'Termos de Uso', route: '/terms' },
 ];
@@ -71,6 +72,9 @@ export default function GuardianProfileScreen() {
 
   function handleLogout() {
     logout();
+    // dismissAll esvazia a pilha de navegação antes do replace, para que o botão
+    // "voltar" não reexiba telas autenticadas após o logout.
+    router.dismissAll();
     router.replace('/(auth)/welcome');
   }
 

@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Badge, Card, LeafletMap, MapPlaceholder, Screen } from '@/components';
-import { MapPoint } from '@/components/ui/LeafletMap';
+import { Badge, Card, MapPlaceholder, Screen, VanboraMap } from '@/components';
+import { MapPoint } from '@/components/ui/VanboraMap';
 import { useAppState } from '@/context/AppState';
 import { getGuardianTracking } from '@/api/tracking';
 import { ApiRouteStop, GuardianTracking } from '@/types';
@@ -11,16 +11,20 @@ import type { ThemeColors, Typography } from '@/theme';
 
 const POLL_MS = 5000;
 
-function toMapPoint(stop: ApiRouteStop): MapPoint | null {
+/**
+ * Por privacidade, o mapa do responsável só recebe a parada do próprio dependente
+ * (destacada como 'my-pickup') e a escola — nunca a de outros alunos. O número
+ * exibido vem de `tracking.myOrder` (posição ativa do dia, já excluindo quem faltou),
+ * não de `stop.position` (posição base, sem essa exclusão).
+ */
+function toMapPoint(stop: ApiRouteStop, kind: 'my-pickup' | 'school', order?: number | null): MapPoint | null {
   if (stop.latitude == null || stop.longitude == null) return null;
-  const kind: MapPoint['kind'] =
-    stop.status === 'SCHOOL' ? 'school' : stop.status === 'NOT_GOING' ? 'inactive' : 'pickup';
   return {
     id: stop.id,
     latitude: stop.latitude,
     longitude: stop.longitude,
     label: stop.label,
-    order: stop.status === 'SCHOOL' ? undefined : stop.position,
+    order: order ?? undefined,
     kind,
   };
 }
@@ -73,13 +77,20 @@ export default function TrackingScreen() {
   }, [token, selectedDependentId]);
 
   // Apenas a parada do próprio dependente + a escola (privacidade).
-  const ownStops = [tracking?.myStop, tracking?.schoolStop].filter(
-    (s): s is ApiRouteStop => s != null,
-  );
-  const points = ownStops.map(toMapPoint).filter((p): p is MapPoint => p !== null);
+  const points = [
+    tracking?.goingToday && tracking.myStop
+      ? toMapPoint(tracking.myStop, 'my-pickup', tracking.myOrder)
+      : null,
+    tracking?.schoolStop ? toMapPoint(tracking.schoolStop, 'school') : null,
+  ].filter((p): p is MapPoint => p !== null);
   const live =
     tracking?.latitude != null && tracking?.longitude != null
-      ? { latitude: tracking.latitude, longitude: tracking.longitude, label: tracking.transporterName ?? 'Transportador' }
+      ? {
+          latitude: tracking.latitude,
+          longitude: tracking.longitude,
+          heading: tracking.heading,
+          label: tracking.transporterName ?? 'Transportador',
+        }
       : null;
 
   const orderText =
@@ -105,7 +116,13 @@ export default function TrackingScreen() {
       ) : (
         <>
           {live || points.length > 0 ? (
-            <LeafletMap points={points} live={live} height={240} />
+            <VanboraMap
+              points={points}
+              live={live}
+              drawPath
+              routeGeometry={tracking?.routeGeometry ?? null}
+              height={240}
+            />
           ) : (
             <MapPlaceholder label="Transportador ainda não compartilhou a posição" height={240} />
           )}
