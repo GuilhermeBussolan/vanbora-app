@@ -1,5 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { DEMO, demoRole } from '@/demo/demoMode';
+import { demoSession } from '@/demo/demoApi';
 
 /**
  * Onde a sessão (JWT + usuário) é guardada, por plataforma.
@@ -21,6 +23,11 @@ import { Platform } from 'react-native';
 
 const isWeb = Platform.OS === 'web';
 
+// Na demonstração, cada perfil (um iframe cada) tem a própria chave de sessão.
+const demoKey = (key: string) => (DEMO ? `${key}:${demoRole}` : key);
+// Só na primeira abertura a demo entra logada; depois de "Sair", respeita o logout.
+const DEMO_STARTED = 'vanbora.demo-started';
+
 function webStorage(): Storage | null {
   try {
     // `window` não existe durante o render estático da web (expo export).
@@ -33,6 +40,17 @@ function webStorage(): Storage | null {
 
 export async function getSessionItem(key: string): Promise<string | null> {
   try {
+    if (DEMO && isWeb) {
+      const storage = webStorage();
+      const started = demoKey(DEMO_STARTED);
+      if (!storage?.getItem(started)) {
+        storage?.setItem(started, '1');
+        const session = await demoSession();
+        storage?.setItem(demoKey(key), session);
+        return session;
+      }
+      return storage?.getItem(demoKey(key)) ?? null;
+    }
     if (isWeb) return webStorage()?.getItem(key) ?? null;
     return await SecureStore.getItemAsync(key);
   } catch {
@@ -43,7 +61,7 @@ export async function getSessionItem(key: string): Promise<string | null> {
 export async function setSessionItem(key: string, value: string): Promise<void> {
   try {
     if (isWeb) {
-      webStorage()?.setItem(key, value);
+      webStorage()?.setItem(demoKey(key), value);
       return;
     }
     await SecureStore.setItemAsync(key, value);
@@ -55,7 +73,7 @@ export async function setSessionItem(key: string, value: string): Promise<void> 
 export async function deleteSessionItem(key: string): Promise<void> {
   try {
     if (isWeb) {
-      webStorage()?.removeItem(key);
+      webStorage()?.removeItem(demoKey(key));
       return;
     }
     await SecureStore.deleteItemAsync(key);

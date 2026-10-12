@@ -1,5 +1,16 @@
 import Constants from 'expo-constants';
 import { notifySessionExpired } from './sessionExpiry';
+import { DEMO } from '@/demo/demoMode';
+import { demoRequest } from '@/demo/demoApi';
+
+/** Modo demonstração (portfólio): responde com dados gravados, sem rede. */
+async function demoCall<T>(path: string, method: string, body?: unknown): Promise<T> {
+  try {
+    return await demoRequest<T>(path, method, body);
+  } catch (e) {
+    throw new ApiError(409, e instanceof Error ? e.message : 'Indisponível na demonstração.');
+  }
+}
 
 /**
  * Cliente HTTP mínimo para a API VanBora (Spring Boot).
@@ -50,6 +61,7 @@ interface RequestOptions {
 /** Faz uma requisição à API e devolve o JSON tipado (ou `undefined` em 204). */
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, token } = options;
+  if (DEMO) return demoCall<T>(path, method, body);
 
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -120,6 +132,7 @@ export async function apiMultipart<T>(
   token?: string | null,
   method: 'POST' | 'PUT' = 'POST',
 ): Promise<T> {
+  if (DEMO) return demoCall<T>(path, method);
   // Multipart vai por XMLHttpRequest, não por fetch: no Expo 57 o fetch global é o
   // `expo/fetch`, que NÃO aceita arquivos no formato do React Native ({ uri, name, type })
   // e falha antes de enviar ("Unsupported FormDataPart implementation"). O XHR do React

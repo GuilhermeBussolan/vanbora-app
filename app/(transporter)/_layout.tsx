@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { router, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +8,7 @@ import { useTheme } from '@/theme';
 
 /** Navegação por abas do perfil Transportador. */
 export default function TransporterLayout() {
+  const isWeb = Platform.OS === 'web';
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const unread = useUnreadCount();
@@ -19,11 +21,12 @@ export default function TransporterLayout() {
         tabBarStyle: {
           backgroundColor: colors.white,
           borderTopColor: colors.border,
-          height: 64 + insets.bottom,
+          // Na web o ícone e o rótulo ocupam mais altura: sem os 10px extras o rótulo é cortado.
+          height: 64 + insets.bottom + (isWeb ? 10 : 0),
           paddingBottom: insets.bottom + 8,
           paddingTop: 8,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: isWeb ? 10 : 11, fontWeight: '600' },
       }}
     >
       <Tabs.Screen

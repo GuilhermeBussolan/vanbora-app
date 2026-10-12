@@ -35,3 +35,6 @@ yarn-error.*
 
 # Typescript
 *.tsbuildinfo
+
+# Regras locais de anonimização da demo (citam nomes e endereços reais)
+scripts/*.local.mjs

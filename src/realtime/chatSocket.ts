@@ -1,6 +1,7 @@
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import { ChatBroadcastDto } from '@/types';
 import { API_BASE_URL } from '@/api/client';
+import { DEMO } from '@/demo/demoMode';
 
 /** Deriva a URL do WebSocket (ws/wss) a partir da base HTTP da API. */
 function wsUrl(): string {
@@ -23,6 +24,11 @@ export class ChatSocket {
   private target: Target | null = null;
 
   connect(token: string, onReady?: () => void): void {
+    // Demonstração sem servidor: as mensagens enviadas já voltam pela resposta do envio.
+    if (DEMO) {
+      onReady?.();
+      return;
+    }
     if (this.client) return;
     const client = new Client({
       webSocketFactory: () => new WebSocket(wsUrl()),
